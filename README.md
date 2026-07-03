@@ -1,1 +1,1 @@
-# matthew-dixie-management
+# Matthew Dixie · Official Membership Portal
