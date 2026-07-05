@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const { pool } = require("../config/db");;
 
 const GiftKit = {
   // Create a new gift kit for a fan card

@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const { pool } = require("../config/db");;
 
 const Application = {
   // Create a new application
