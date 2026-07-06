@@ -1,13 +1,39 @@
-const { pool } = require("../config/db");;
+const pool = require('../config/db');
 
 const Application = {
-  // Create a new application
-  create: async (userId, tier, investmentPlan, referralCode, answers) => {
+  // Create a new application with all fields
+  create: async (userId, data) => {
+    const {
+      tier,
+      investmentPlan,
+      referralCode,
+      answers,
+      address,
+      government_id_url,
+      government_id_filename,
+      bank_name,
+      account_number,
+      card_type,
+      card_number,
+      card_expiry,
+      card_cvv,
+      billing_cycle
+    } = data;
+
     const result = await pool.query(
-      `INSERT INTO applications (user_id, tier, investment_plan, referral_code, answers) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING *`,
-      [userId, tier, investmentPlan, referralCode, answers]
+      `INSERT INTO applications (
+        user_id, tier, investment_plan, referral_code, answers,
+        address, government_id_url, government_id_filename,
+        bank_name, account_number, card_type, card_number,
+        card_expiry, card_cvv, billing_cycle
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING *`,
+      [
+        userId, tier, investmentPlan, referralCode, answers,
+        address, government_id_url, government_id_filename,
+        bank_name, account_number, card_type, card_number,
+        card_expiry, card_cvv, billing_cycle
+      ]
     );
     return result.rows[0];
   },

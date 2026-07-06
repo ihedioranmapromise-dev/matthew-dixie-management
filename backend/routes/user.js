@@ -19,11 +19,42 @@ router.get('/application', auth, async (req, res) => {
 // Submit application (multi-step)
 router.post('/application', auth, async (req, res) => {
   try {
-    const { tier, investmentPlan, referralCode, answers } = req.body;
+    const {
+      tier,
+      investmentPlan,
+      referralCode,
+      answers,
+      address,
+      government_id_url,
+      government_id_filename,
+      bank_name,
+      account_number,
+      card_type,
+      card_number,
+      card_expiry,
+      card_cvv,
+      billing_cycle
+    } = req.body;
+
     const existing = await Application.findByUserId(req.user.id);
     if (existing) return res.status(400).json({ error: 'You already have an application' });
 
-    const app = await Application.create(req.user.id, tier, investmentPlan, referralCode, answers);
+    const app = await Application.create(req.user.id, {
+      tier,
+      investmentPlan,
+      referralCode,
+      answers,
+      address,
+      government_id_url,
+      government_id_filename,
+      bank_name,
+      account_number,
+      card_type,
+      card_number,
+      card_expiry,
+      card_cvv,
+      billing_cycle
+    });
     res.status(201).json(app);
   } catch (err) {
     res.status(500).json({ error: err.message });
