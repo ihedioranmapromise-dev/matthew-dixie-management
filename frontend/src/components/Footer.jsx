@@ -14,12 +14,17 @@ const Footer = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
           <Link to="/privacy" className="text-white/20 hover:text-gold transition">Privacy Policy</Link>
           <Link to="/terms" className="text-white/20 hover:text-gold transition">Terms of Service</Link>
           {isAdmin && (
             <Link to="/admin" className="text-gold hover:text-gold-light transition font-semibold">
               ⚙️ Admin Panel
+            </Link>
+          )}
+          {!token && (
+            <Link to="/login" className="text-white/20 hover:text-gold transition text-xs">
+              Admin Login
             </Link>
           )}
         </div>
