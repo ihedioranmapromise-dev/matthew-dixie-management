@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const Application = require('../models/Application');
@@ -7,7 +8,27 @@ const GiftKit = require('../models/GiftKit');
 const User = require('../models/User');
 const router = express.Router();
 
-// All admin routes require auth + admin role
+// Admin login – password only
+router.post('/login', (req, res) => {
+  const { password } = req.body;
+  const adminPassword = process.env.ADMIN_PASSWORD || 'WORKandPRAY@1';
+  
+  if (password === adminPassword) {
+    const token = jwt.sign(
+      { id: 999, role: 'admin' },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ 
+      token, 
+      user: { id: 999, name: 'Admin', email: 'admin@matthewdixie.com', role: 'admin' } 
+    });
+  } else {
+    res.status(401).json({ error: 'Invalid admin password' });
+  }
+});
+
+// All other admin routes require auth + admin role
 router.use(auth, admin);
 
 // Get all applications (with optional status filter)
@@ -41,14 +62,11 @@ router.put('/applications/:id', async (req, res) => {
 
     const updated = await Application.updateStatus(req.params.id, status, adminNotes, invoiceDetails);
 
-    // If status becomes 'approved', create FanCard and GiftKit
     if (status === 'approved') {
       const user = await User.findById(app.user_id);
       const cardNumber = `MD${Date.now().toString(36).toUpperCase()}`;
-      
       const fanCard = await FanCard.create(user.id, cardNumber, app.tier, null);
       await User.updateTier(user.id, app.tier);
-      
       await GiftKit.create(fanCard.id);
     }
 
@@ -58,7 +76,7 @@ router.put('/applications/:id', async (req, res) => {
   }
 });
 
-// Get support contact info (from env)
+// Get support contact info
 router.get('/support-info', async (req, res) => {
   res.json({
     email: process.env.SUPPORT_EMAIL || 'support@matthewdixie.com',
