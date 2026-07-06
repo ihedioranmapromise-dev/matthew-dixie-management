@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Tiers from './pages/Tiers';
 import Apply from './pages/Apply';
+import Auth from './pages/Auth';
 
 function App() {
   return (
@@ -10,11 +11,11 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/tiers" element={<Tiers />} />
         <Route path="/apply" element={<Apply />} />
-        <Route path="/investments" element={<div className="min-h-screen bg-[#1A1A1A] text-white flex items-center justify-center text-2xl">Investments (coming soon)</div>} />
-        <Route path="/dashboard" element={<div className="min-h-screen bg-[#1A1A1A] text-white flex items-center justify-center text-2xl">Dashboard (coming soon)</div>} />
-        <Route path="/admin" element={<div className="min-h-screen bg-[#1A1A1A] text-white flex items-center justify-center text-2xl">Admin Panel (coming soon)</div>} />
-        <Route path="/login" element={<div className="min-h-screen bg-[#1A1A1A] text-white flex items-center justify-center text-2xl">Login (coming soon)</div>} />
-        <Route path="/register" element={<div className="min-h-screen bg-[#1A1A1A] text-white flex items-center justify-center text-2xl">Register (coming soon)</div>} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/register" element={<Auth />} />
+        <Route path="/investments" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl">Investments (coming soon)</div>} />
+        <Route path="/dashboard" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl">Dashboard (coming soon)</div>} />
+        <Route path="/admin" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl">Admin Panel (coming soon)</div>} />
       </Routes>
     </BrowserRouter>
   );
