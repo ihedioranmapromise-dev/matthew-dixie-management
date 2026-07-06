@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Tiers from './pages/Tiers';
 import Apply from './pages/Apply';
 import Auth from './pages/Auth';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -15,9 +16,9 @@ function App() {
         <Route path="/apply" element={<Apply />} />
         <Route path="/login" element={<Auth />} />
         <Route path="/register" element={<Auth />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/investments" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Investments (coming soon)</div>} />
         <Route path="/dashboard" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Dashboard (coming soon)</div>} />
-        <Route path="/admin" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Admin Panel (coming soon)</div>} />
         <Route path="/blog" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Blog (coming soon)</div>} />
       </Routes>
     </BrowserRouter>
