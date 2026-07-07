@@ -2,7 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const { pool } = require('../config/db');  // <-- ADD THIS LINE
+const { pool } = require('../config/db');
 const Application = require('../models/Application');
 const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
@@ -32,7 +32,7 @@ router.post('/login', (req, res) => {
 // All other admin routes require auth + admin role
 router.use(auth, admin);
 
-// Get all applications (with optional status filter)
+// ---- Applications ----
 router.get('/applications', async (req, res) => {
   try {
     const { status } = req.query;
@@ -43,7 +43,6 @@ router.get('/applications', async (req, res) => {
   }
 });
 
-// Get single application by ID
 router.get('/applications/:id', async (req, res) => {
   try {
     const app = await Application.findById(req.params.id);
@@ -54,7 +53,6 @@ router.get('/applications/:id', async (req, res) => {
   }
 });
 
-// Update application status
 router.put('/applications/:id', async (req, res) => {
   try {
     const { status, adminNotes, invoiceDetails } = req.body;
@@ -77,15 +75,37 @@ router.put('/applications/:id', async (req, res) => {
   }
 });
 
-// Get support contact info
-router.get('/support-info', async (req, res) => {
-  res.json({
-    email: process.env.SUPPORT_EMAIL || 'support@matthewdixie.com',
-    whatsapp: process.env.WHATSAPP_NUMBER || '+1234567890'
-  });
+// ---- Tiers ----
+router.get('/tiers', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM tiers ORDER BY id');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Get all users (admin only)
+router.put('/tiers/:id', async (req, res) => {
+  try {
+    const { name, price_monthly, price_yearly, benefits, is_active } = req.body;
+    const id = req.params.id;
+    const result = await pool.query(
+      `UPDATE tiers 
+       SET name = $1, price_monthly = $2, price_yearly = $3, benefits = $4, is_active = $5, updated_at = NOW()
+       WHERE id = $6
+       RETURNING *`,
+      [name, price_monthly, price_yearly, benefits, is_active, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tier not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Users ----
 router.get('/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, name, email, role, membership_tier, created_at FROM users ORDER BY created_at DESC');
@@ -93,6 +113,14 @@ router.get('/users', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---- Support ----
+router.get('/support-info', async (req, res) => {
+  res.json({
+    email: process.env.SUPPORT_EMAIL || 'support@matthewdixie.com',
+    whatsapp: process.env.WHATSAPP_NUMBER || '+1234567890'
+  });
 });
 
 module.exports = router;

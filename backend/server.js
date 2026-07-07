@@ -3,26 +3,23 @@ const express = require('express');
 const cors = require('cors');
 const { connectDB } = require('./config/db');
 
-// Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
+const publicRoutes = require('./routes/public');
 
 const app = express();
 
-// Connect to database
 connectDB();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/public', publicRoutes);
 
-// Basic test route
 app.get('/', (req, res) => {
   res.json({ message: 'Matthew Dixie API is running' });
 });
