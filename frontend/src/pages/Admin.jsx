@@ -6,36 +6,58 @@ const Admin = () => {
   const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState({});
+
+  const fetchApplications = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/admin/applications', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setApplications(response.data);
+    } catch (error) {
+      console.error(error);
+      alert('You must be an admin to view this page.');
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchApplications = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get('/api/admin/applications', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setApplications(response.data);
-      } catch (error) {
-        console.error(error);
-        alert('You must be an admin to view this page.');
-        navigate('/');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchApplications();
   }, [navigate]);
+
+  const updateStatus = async (id, status) => {
+    setProcessing({ ...processing, [id]: true });
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/admin/applications/${id}`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await fetchApplications();
+    } catch (error) {
+      console.error(error);
+      alert('Error updating application: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setProcessing({ ...processing, [id]: false });
+    }
+  };
 
   if (loading) return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <h1 className="font-serif text-3xl text-white mb-2">Admin Panel</h1>
         <p className="text-warm-sand-light opacity-70 mb-8">Manage applications and users</p>
 
         <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-          <h2 className="font-serif text-xl text-white mb-4">Applications</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-serif text-xl text-white">Applications</h2>
+            <span className="text-sm text-white/40">{applications.length} total</span>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -45,27 +67,60 @@ const Admin = () => {
                   <th className="text-left py-2 px-4 text-white/40">Tier</th>
                   <th className="text-left py-2 px-4 text-white/40">Status</th>
                   <th className="text-left py-2 px-4 text-white/40">Date</th>
+                  <th className="text-left py-2 px-4 text-white/40">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {applications.map((app) => (
-                  <tr key={app.id} className="border-b border-white/5">
-                    <td className="py-2 px-4 text-white/60">{app.id}</td>
-                    <td className="py-2 px-4 text-white/60">{app.user_id}</td>
-                    <td className="py-2 px-4 text-white/60 capitalize">{app.tier}</td>
-                    <td className="py-2 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        app.status === 'approved' ? 'bg-green-500/20 text-green-400' :
-                        app.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
-                        app.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                        'bg-blue-500/20 text-blue-400'
-                      }`}>
-                        {app.status}
-                      </span>
-                    </td>
-                    <td className="py-2 px-4 text-white/40">{new Date(app.created_at).toLocaleDateString()}</td>
+                {applications.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-8 text-white/30">No applications found</td>
                   </tr>
-                ))}
+                ) : (
+                  applications.map((app) => (
+                    <tr key={app.id} className="border-b border-white/5">
+                      <td className="py-2 px-4 text-white/60">{app.id}</td>
+                      <td className="py-2 px-4 text-white/60">{app.user_id}</td>
+                      <td className="py-2 px-4 text-white/60 capitalize">{app.tier}</td>
+                      <td className="py-2 px-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          app.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                          app.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                          app.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {app.status}
+                        </span>
+                      </td>
+                      <td className="py-2 px-4 text-white/40">{new Date(app.created_at).toLocaleDateString()}</td>
+                      <td className="py-2 px-4">
+                        {app.status === 'pending' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updateStatus(app.id, 'approved')}
+                              disabled={processing[app.id]}
+                              className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs hover:bg-green-500/30 transition disabled:opacity-50"
+                            >
+                              {processing[app.id] ? '...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => updateStatus(app.id, 'rejected')}
+                              disabled={processing[app.id]}
+                              className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition disabled:opacity-50"
+                            >
+                              {processing[app.id] ? '...' : 'Reject'}
+                            </button>
+                          </div>
+                        )}
+                        {app.status === 'approved' && (
+                          <span className="text-green-400 text-xs">✓ Approved</span>
+                        )}
+                        {app.status === 'rejected' && (
+                          <span className="text-red-400 text-xs">✗ Rejected</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
