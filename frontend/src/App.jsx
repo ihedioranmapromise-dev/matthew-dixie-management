@@ -8,6 +8,7 @@ import Apply from './pages/Apply';
 import Auth from './pages/Auth';
 import Admin from './pages/Admin';
 import AdminLogin from './pages/AdminLogin';
+import Dashboard from './pages/Dashboard';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 
@@ -25,10 +26,10 @@ function App() {
             <Route path="/register" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/investments" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Investments (coming soon)</div>} />
-            <Route path="/dashboard" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Dashboard (coming soon)</div>} />
             <Route path="/blog" element={<div className="min-h-screen bg-charcoal text-white flex items-center justify-center text-2xl pt-20">Blog (coming soon)</div>} />
           </Routes>
         </main>
