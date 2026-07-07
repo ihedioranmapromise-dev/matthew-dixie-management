@@ -4,7 +4,6 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Function to test connection (used in server.js)
 const connectDB = async () => {
   try {
     await pool.connect();
@@ -15,6 +14,7 @@ const connectDB = async () => {
   }
 };
 
-// Export both the pool (for models) and the connectDB function (for server)
-module.exports = connectDB;
-module.exports.pool = pool;
+module.exports = {
+  connectDB,
+  pool
+};

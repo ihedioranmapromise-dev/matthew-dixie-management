@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -10,7 +10,7 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 
-// Connect to database (Supabase/PostgreSQL)
+// Connect to database
 connectDB();
 
 // Middleware
