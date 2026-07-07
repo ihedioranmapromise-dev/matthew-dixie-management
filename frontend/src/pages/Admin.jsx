@@ -12,6 +12,7 @@ const Admin = () => {
   const [selectedApp, setSelectedApp] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [editingTier, setEditingTier] = useState(null);
+  const [supportInfo, setSupportInfo] = useState(null);
   const [tierForm, setTierForm] = useState({
     name: '',
     price_monthly: 0,
@@ -23,37 +24,41 @@ const Admin = () => {
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Fetch applications
+  const fetchSupportInfo = async () => {
+    try {
+      const res = await axios.get('/api/admin/support-info', { headers });
+      setSupportInfo(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const fetchApplications = async () => {
     try {
       const res = await axios.get('/api/admin/applications', { headers });
       setApplications(res.data);
     } catch (error) {
       console.error(error);
-      alert('Error fetching applications');
     }
   };
 
-  // Fetch tiers
   const fetchTiers = async () => {
     try {
       const res = await axios.get('/api/admin/tiers', { headers });
       setTiers(res.data);
     } catch (error) {
       console.error(error);
-      alert('Error fetching tiers');
     }
   };
 
   useEffect(() => {
     const fetchAll = async () => {
-      await Promise.all([fetchApplications(), fetchTiers()]);
+      await Promise.all([fetchApplications(), fetchTiers(), fetchSupportInfo()]);
       setLoading(false);
     };
     fetchAll();
   }, []);
 
-  // Application status update
   const updateStatus = async (id, status) => {
     setProcessing({ ...processing, [id]: true });
     try {
@@ -66,7 +71,6 @@ const Admin = () => {
     }
   };
 
-  // Open application details modal
   const openDetails = (app) => {
     setSelectedApp(app);
     setShowModal(true);
@@ -76,7 +80,6 @@ const Admin = () => {
     setSelectedApp(null);
   };
 
-  // Tier management
   const startEditTier = (tier) => {
     setEditingTier(tier.id);
     setTierForm({
@@ -108,6 +111,17 @@ const Admin = () => {
     setTierForm({ ...tierForm, benefits });
   };
 
+  const copyEmailTemplate = () => {
+    if (!selectedApp || !supportInfo) return;
+    const amount = selectedApp.tier === 'explorer' ? 49 : selectedApp.tier === 'builder' ? 149 : 349;
+    const msg = `Subject: Payment Instructions for Your Matthew Dixie Membership\n\nThank you for applying to join the Inner Circle.\n\nTo complete your membership, please make a payment to:\n\nBank Name: [INSERT YOUR BANK NAME]\nAccount Name: [INSERT YOUR ACCOUNT NAME]\nAccount Number: [INSERT YOUR ACCOUNT NUMBER]\nSort Code: [INSERT YOUR SORT CODE]\n\nAmount: $${amount}\n\nAfter payment, please reply to this email with proof of payment.\n\nWe'll activate your membership upon confirmation.\n\nRegards,\nMatthew Dixie Management`;
+    navigator.clipboard.writeText(msg).then(() => {
+      alert('Email template copied to clipboard. Paste into your email client, fill in the bank details, and send to the user.');
+    }).catch(() => {
+      prompt('Copy this template manually:', msg);
+    });
+  };
+
   if (loading) return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
 
   return (
@@ -116,27 +130,11 @@ const Admin = () => {
         <h1 className="font-serif text-3xl text-white mb-2">Admin Panel</h1>
         <p className="text-warm-sand-light opacity-70 mb-8">Manage applications and tiers</p>
 
-        {/* Tabs */}
         <div className="flex gap-4 mb-6 border-b border-white/10">
-          <button
-            onClick={() => setActiveTab('applications')}
-            className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${
-              activeTab === 'applications' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'
-            }`}
-          >
-            Applications
-          </button>
-          <button
-            onClick={() => setActiveTab('tiers')}
-            className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${
-              activeTab === 'tiers' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'
-            }`}
-          >
-            Tiers
-          </button>
+          <button onClick={() => setActiveTab('applications')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'applications' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Applications</button>
+          <button onClick={() => setActiveTab('tiers')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'tiers' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Tiers</button>
         </div>
 
-        {/* Applications Tab */}
         {activeTab === 'applications' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -196,7 +194,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Tiers Tab */}
         {activeTab === 'tiers' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <h2 className="font-serif text-xl text-white mb-4">Manage Tiers</h2>
@@ -204,43 +201,23 @@ const Admin = () => {
               {tiers.map((tier) => (
                 <div key={tier.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
                   {editingTier === tier.id ? (
-                    // Edit mode
                     <div className="space-y-3">
                       <div className="flex gap-4">
                         <div className="flex-1">
                           <label className="block text-xs text-white/40">Name</label>
-                          <input
-                            type="text"
-                            value={tierForm.name}
-                            onChange={(e) => setTierForm({ ...tierForm, name: e.target.value })}
-                            className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
-                          />
+                          <input type="text" value={tierForm.name} onChange={(e) => setTierForm({ ...tierForm, name: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
                         </div>
                         <div className="w-24">
                           <label className="block text-xs text-white/40">Monthly $</label>
-                          <input
-                            type="number"
-                            value={tierForm.price_monthly}
-                            onChange={(e) => setTierForm({ ...tierForm, price_monthly: parseInt(e.target.value) || 0 })}
-                            className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
-                          />
+                          <input type="number" value={tierForm.price_monthly} onChange={(e) => setTierForm({ ...tierForm, price_monthly: parseInt(e.target.value) || 0 })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
                         </div>
                         <div className="w-24">
                           <label className="block text-xs text-white/40">Yearly $</label>
-                          <input
-                            type="number"
-                            value={tierForm.price_yearly}
-                            onChange={(e) => setTierForm({ ...tierForm, price_yearly: parseInt(e.target.value) || 0 })}
-                            className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
-                          />
+                          <input type="number" value={tierForm.price_yearly} onChange={(e) => setTierForm({ ...tierForm, price_yearly: parseInt(e.target.value) || 0 })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
                         </div>
                         <div className="w-24">
                           <label className="block text-xs text-white/40">Active</label>
-                          <select
-                            value={tierForm.is_active ? 'true' : 'false'}
-                            onChange={(e) => setTierForm({ ...tierForm, is_active: e.target.value === 'true' })}
-                            className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
-                          >
+                          <select value={tierForm.is_active ? 'true' : 'false'} onChange={(e) => setTierForm({ ...tierForm, is_active: e.target.value === 'true' })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm">
                             <option value="true">Yes</option>
                             <option value="false">No</option>
                           </select>
@@ -248,42 +225,25 @@ const Admin = () => {
                       </div>
                       <div>
                         <label className="block text-xs text-white/40">Benefits (one per line)</label>
-                        <textarea
-                          value={tierForm.benefits.join('\n')}
-                          onChange={handleBenefitChange}
-                          rows={4}
-                          className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
-                          placeholder="Exclusive content&#10;Community access&#10;Monthly newsletter"
-                        />
+                        <textarea value={tierForm.benefits.join('\n')} onChange={handleBenefitChange} rows={4} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => saveTier(tier.id)} className="px-4 py-1 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition">
-                          Save
-                        </button>
-                        <button onClick={cancelEdit} className="px-4 py-1 border border-white/20 text-white/60 rounded-full text-xs hover:border-white/40 transition">
-                          Cancel
-                        </button>
+                        <button onClick={() => saveTier(tier.id)} className="px-4 py-1 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition">Save</button>
+                        <button onClick={cancelEdit} className="px-4 py-1 border border-white/20 text-white/60 rounded-full text-xs hover:border-white/40 transition">Cancel</button>
                       </div>
                     </div>
                   ) : (
-                    // View mode
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-serif text-xl text-white capitalize">{tier.name}</h3>
                         <div className="flex gap-4 text-sm mt-1">
                           <span className="text-white/60">${tier.price_monthly}/mo</span>
                           <span className="text-white/60">${tier.price_yearly}/yr</span>
-                          <span className={tier.is_active ? 'text-green-400' : 'text-red-400'}>
-                            {tier.is_active ? 'Active' : 'Inactive'}
-                          </span>
+                          <span className={tier.is_active ? 'text-green-400' : 'text-red-400'}>{tier.is_active ? 'Active' : 'Inactive'}</span>
                         </div>
-                        <ul className="mt-2 text-sm text-white/40 list-disc list-inside">
-                          {(tier.benefits || []).map((b, i) => <li key={i}>{b}</li>)}
-                        </ul>
+                        <ul className="mt-2 text-sm text-white/40 list-disc list-inside">{(tier.benefits || []).map((b, i) => <li key={i}>{b}</li>)}</ul>
                       </div>
-                      <button onClick={() => startEditTier(tier)} className="px-3 py-1 bg-gold/20 text-gold rounded-full text-xs hover:bg-gold/30 transition">
-                        Edit
-                      </button>
+                      <button onClick={() => startEditTier(tier)} className="px-3 py-1 bg-gold/20 text-gold rounded-full text-xs hover:bg-gold/30 transition">Edit</button>
                     </div>
                   )}
                 </div>
@@ -292,7 +252,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Modal for Application Details */}
         {showModal && selectedApp && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={closeModal}>
             <div className="bg-charcoal-light rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
@@ -303,6 +262,7 @@ const Admin = () => {
               <div className="space-y-3 text-sm">
                 <div><span className="text-white/40">ID:</span> <span className="text-white">{selectedApp.id}</span></div>
                 <div><span className="text-white/40">User ID:</span> <span className="text-white">{selectedApp.user_id}</span></div>
+                <div><span className="text-white/40">Email:</span> <span className="text-white">{selectedApp.user_email || selectedApp.user_id}</span></div>
                 <div><span className="text-white/40">Tier:</span> <span className="text-white capitalize">{selectedApp.tier}</span></div>
                 <div><span className="text-white/40">Investment Plan:</span> <span className="text-white">{selectedApp.investment_plan || 'None'}</span></div>
                 <div><span className="text-white/40">Referral Code:</span> <span className="text-white">{selectedApp.referral_code || 'None'}</span></div>
@@ -324,6 +284,22 @@ const Admin = () => {
                 <div><span className="text-white/40">Created:</span> <span className="text-white">{new Date(selectedApp.created_at).toLocaleString()}</span></div>
                 {selectedApp.admin_notes && <div><span className="text-white/40">Admin Notes:</span> <p className="text-white mt-1 bg-white/5 p-2 rounded">{selectedApp.admin_notes}</p></div>}
               </div>
+
+              {/* Payment Instructions Section (for pending applications) */}
+              {selectedApp.status === 'pending' && supportInfo && (
+                <div className="mt-6 pt-4 border-t border-white/10">
+                  <h4 className="font-serif text-lg text-white mb-2">✉️ Send Payment Instructions</h4>
+                  <div className="bg-white/5 p-3 rounded text-sm text-white/80 space-y-1">
+                    <p><span className="text-white/40">User Email:</span> <span className="text-white">{selectedApp.user_email || 'Not available'}</span></p>
+                    <p className="text-xs text-white/30 mt-2">Click the button below to copy a template email with payment instructions.</p>
+                    <p className="text-xs text-white/30">You'll need to manually paste it into your email client and fill in your bank details.</p>
+                  </div>
+                  <button onClick={copyEmailTemplate} className="mt-3 px-4 py-2 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition">
+                    📋 Copy Email Template
+                  </button>
+                  <p className="text-xs text-white/30 mt-2">After receiving payment, click Approve above to activate the membership.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
