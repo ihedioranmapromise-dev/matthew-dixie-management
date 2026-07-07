@@ -23,7 +23,6 @@ const Navbar = () => {
           <Link to="/" className="text-white/60 hover:text-gold transition">Home</Link>
           <Link to="/tiers" className="text-white/60 hover:text-gold transition">Tiers</Link>
           <Link to="/investments" className="text-white/60 hover:text-gold transition">Invest</Link>
-          <Link to="/apply" className="text-white/60 hover:text-gold transition">Apply</Link>
           <Link to="/blog" className="text-white/60 hover:text-gold transition">Blog</Link>
         </div>
 
