@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 const Tiers = () => {
   const [tiers, setTiers] = useState([]);
@@ -9,7 +9,7 @@ const Tiers = () => {
   useEffect(() => {
     const fetchTiers = async () => {
       try {
-        const res = await axios.get('/api/public/tiers');
+        const res = await api.get('/public/tiers');
         setTiers(res.data);
       } catch (err) {
         console.error(err);
@@ -35,9 +35,7 @@ const Tiers = () => {
       <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {tiers.map((tier) => (
           <div key={tier.id} className={`bg-white/5 rounded-2xl p-8 border transition hover:-translate-y-2 hover:shadow-2xl ${tier.is_active ? 'border-white/5' : 'border-red-500/20 opacity-60'}`}>
-            <span className="inline-block px-3 py-1 border border-gold rounded-full text-xs uppercase tracking-widest text-gold mb-4">
-              {tier.name}
-            </span>
+            <span className="inline-block px-3 py-1 border border-gold rounded-full text-xs uppercase tracking-widest text-gold mb-4">{tier.name}</span>
             <h3 className="font-serif text-2xl text-white capitalize">{tier.name}</h3>
             <div className="mt-2 mb-4">
               <span className="text-3xl font-bold text-white">${tier.price_monthly}</span>
@@ -51,9 +49,7 @@ const Tiers = () => {
                 <li key={i} className="flex items-center gap-2"><span className="text-gold">◆</span> {benefit}</li>
               ))}
             </ul>
-            <Link to="/apply" className="block text-center mt-6 px-6 py-3 border border-gold text-gold rounded-full text-sm uppercase tracking-wider font-semibold hover:bg-gold hover:text-charcoal transition">
-              Apply Now
-            </Link>
+            <Link to="/apply" className="block text-center mt-6 px-6 py-3 border border-gold text-gold rounded-full text-sm uppercase tracking-wider font-semibold hover:bg-gold hover:text-charcoal transition">Apply Now</Link>
           </div>
         ))}
       </div>

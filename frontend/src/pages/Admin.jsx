@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import api from '../api';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ const Admin = () => {
 
   const fetchSupportInfo = async () => {
     try {
-      const res = await axios.get('/api/admin/support-info', { headers });
+      const res = await api.get('/admin/support-info', { headers });
       setSupportInfo(res.data);
     } catch (error) {
       console.error(error);
@@ -35,7 +35,7 @@ const Admin = () => {
 
   const fetchApplications = async () => {
     try {
-      const res = await axios.get('/api/admin/applications', { headers });
+      const res = await api.get('/admin/applications', { headers });
       setApplications(res.data);
     } catch (error) {
       console.error(error);
@@ -44,7 +44,7 @@ const Admin = () => {
 
   const fetchTiers = async () => {
     try {
-      const res = await axios.get('/api/admin/tiers', { headers });
+      const res = await api.get('/admin/tiers', { headers });
       setTiers(res.data);
     } catch (error) {
       console.error(error);
@@ -62,7 +62,7 @@ const Admin = () => {
   const updateStatus = async (id, status) => {
     setProcessing({ ...processing, [id]: true });
     try {
-      await axios.put(`/api/admin/applications/${id}`, { status }, { headers });
+      await api.put(`/admin/applications/${id}`, { status }, { headers });
       await fetchApplications();
     } catch (error) {
       alert('Error updating application');
@@ -97,7 +97,7 @@ const Admin = () => {
 
   const saveTier = async (id) => {
     try {
-      await axios.put(`/api/admin/tiers/${id}`, tierForm, { headers });
+      await api.put(`/admin/tiers/${id}`, tierForm, { headers });
       await fetchTiers();
       setEditingTier(null);
     } catch (error) {
@@ -285,19 +285,16 @@ const Admin = () => {
                 {selectedApp.admin_notes && <div><span className="text-white/40">Admin Notes:</span> <p className="text-white mt-1 bg-white/5 p-2 rounded">{selectedApp.admin_notes}</p></div>}
               </div>
 
-              {/* Payment Instructions Section (for pending applications) */}
               {selectedApp.status === 'pending' && supportInfo && (
                 <div className="mt-6 pt-4 border-t border-white/10">
                   <h4 className="font-serif text-lg text-white mb-2">✉️ Send Payment Instructions</h4>
                   <div className="bg-white/5 p-3 rounded text-sm text-white/80 space-y-1">
                     <p><span className="text-white/40">User Email:</span> <span className="text-white">{selectedApp.user_email || 'Not available'}</span></p>
                     <p className="text-xs text-white/30 mt-2">Click the button below to copy a template email with payment instructions.</p>
-                    <p className="text-xs text-white/30">You'll need to manually paste it into your email client and fill in your bank details.</p>
                   </div>
                   <button onClick={copyEmailTemplate} className="mt-3 px-4 py-2 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition">
                     📋 Copy Email Template
                   </button>
-                  <p className="text-xs text-white/30 mt-2">After receiving payment, click Approve above to activate the membership.</p>
                 </div>
               )}
             </div>
