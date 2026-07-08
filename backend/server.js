@@ -16,7 +16,7 @@ connectDB();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://matthew-dixie-membership.vercel.app',
+    'https://mdfans.vercel.app',          // <-- your actual Vercel domain
     'https://matthew-dixie-management.onrender.com'
   ],
   credentials: true
