@@ -7,6 +7,7 @@ const Admin = () => {
   const [activeTab, setActiveTab] = useState('applications');
   const [applications, setApplications] = useState([]);
   const [tiers, setTiers] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState({});
   const [selectedApp, setSelectedApp] = useState(null);
@@ -51,9 +52,18 @@ const Admin = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get('/admin/users', { headers });
+      setUsers(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
-      await Promise.all([fetchApplications(), fetchTiers(), fetchSupportInfo()]);
+      await Promise.all([fetchApplications(), fetchTiers(), fetchUsers(), fetchSupportInfo()]);
       setLoading(false);
     };
     fetchAll();
@@ -122,17 +132,29 @@ const Admin = () => {
     });
   };
 
+  // Update user tier
+  const updateUserTier = async (userId, tier) => {
+    try {
+      await api.put(`/admin/users/${userId}/tier`, { tier }, { headers });
+      await fetchUsers();
+      alert('User tier updated successfully');
+    } catch (error) {
+      alert('Error updating user tier');
+    }
+  };
+
   if (loading) return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
 
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="font-serif text-3xl text-white mb-2">Admin Panel</h1>
-        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications and tiers</p>
+        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, and users</p>
 
         <div className="flex gap-4 mb-6 border-b border-white/10">
           <button onClick={() => setActiveTab('applications')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'applications' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Applications</button>
           <button onClick={() => setActiveTab('tiers')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'tiers' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Tiers</button>
+          <button onClick={() => setActiveTab('users')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'users' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Users</button>
         </div>
 
         {activeTab === 'applications' && (
@@ -248,6 +270,76 @@ const Admin = () => {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-xl text-white">Users</h2>
+              <span className="text-sm text-white/40">{users.length} total</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-2 px-4 text-white/40">ID</th>
+                    <th className="text-left py-2 px-4 text-white/40">Name</th>
+                    <th className="text-left py-2 px-4 text-white/40">Email</th>
+                    <th className="text-left py-2 px-4 text-white/40">Role</th>
+                    <th className="text-left py-2 px-4 text-white/40">Tier</th>
+                    <th className="text-left py-2 px-4 text-white/40">Joined</th>
+                    <th className="text-left py-2 px-4 text-white/40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length === 0 ? (
+                    <tr><td colSpan="7" className="text-center py-8 text-white/30">No users found</td></tr>
+                  ) : (
+                    users.map((user) => (
+                      <tr key={user.id} className="border-b border-white/5">
+                        <td className="py-2 px-4 text-white/60">{user.id}</td>
+                        <td className="py-2 px-4 text-white/60">{user.name}</td>
+                        <td className="py-2 px-4 text-white/60">{user.email}</td>
+                        <td className="py-2 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            user.role === 'admin' ? 'bg-gold/20 text-gold' :
+                            user.role === 'support' ? 'bg-blue-500/20 text-blue-400' :
+                            'bg-white/10 text-white/60'
+                          }`}>{user.role}</span>
+                        </td>
+                        <td className="py-2 px-4">
+                          <select
+                            value={user.membership_tier || ''}
+                            onChange={(e) => updateUserTier(user.id, e.target.value)}
+                            className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:border-gold"
+                          >
+                            <option value="">None</option>
+                            <option value="explorer">Explorer</option>
+                            <option value="builder">Builder</option>
+                            <option value="master">Master</option>
+                          </select>
+                        </td>
+                        <td className="py-2 px-4 text-white/40">{new Date(user.created_at).toLocaleDateString()}</td>
+                        <td className="py-2 px-4">
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete user ${user.email}?`)) {
+                                // Optional: implement user deletion
+                                alert('Delete functionality coming soon.');
+                              }
+                            }}
+                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

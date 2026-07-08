@@ -124,3 +124,22 @@ router.get('/support-info', async (req, res) => {
 });
 
 module.exports = router;
+
+// ---- User Management ----
+// Update user tier
+router.put('/users/:id/tier', async (req, res) => {
+  try {
+    const { tier } = req.body;
+    const userId = req.params.id;
+    const result = await pool.query(
+      'UPDATE users SET membership_tier = $1 WHERE id = $2 RETURNING id, name, email, membership_tier',
+      [tier || null, userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
