@@ -12,7 +12,16 @@ const app = express();
 
 connectDB();
 
-app.use(cors());
+// CORS configuration
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://matthew-dixie-membership.vercel.app',
+    'https://matthew-dixie-management.onrender.com'
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
