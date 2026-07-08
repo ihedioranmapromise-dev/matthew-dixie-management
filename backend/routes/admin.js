@@ -115,18 +115,6 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// ---- Support ----
-router.get('/support-info', async (req, res) => {
-  res.json({
-    email: process.env.SUPPORT_EMAIL || 'support@matthewdixie.com',
-    whatsapp: process.env.WHATSAPP_NUMBER || '+1234567890'
-  });
-});
-
-module.exports = router;
-
-// ---- User Management ----
-// Update user tier
 router.put('/users/:id/tier', async (req, res) => {
   try {
     const { tier } = req.body;
@@ -135,11 +123,191 @@ router.put('/users/:id/tier', async (req, res) => {
       'UPDATE users SET membership_tier = $1 WHERE id = $2 RETURNING id, name, email, membership_tier',
       [tier || null, userId]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ---- Investments ----
+router.get('/investments', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM investments ORDER BY id');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/investments/:id', async (req, res) => {
+  try {
+    const { name, min_amount, max_amount, description, is_active } = req.body;
+    const result = await pool.query(
+      `UPDATE investments 
+       SET name = $1, min_amount = $2, max_amount = $3, description = $4, is_active = $5, updated_at = NOW()
+       WHERE id = $6 RETURNING *`,
+      [name, min_amount, max_amount, description, is_active, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Investment not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/investments', async (req, res) => {
+  try {
+    const { name, min_amount, max_amount, description, is_active } = req.body;
+    const result = await pool.query(
+      `INSERT INTO investments (name, min_amount, max_amount, description, is_active)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, min_amount, max_amount, description, is_active]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/investments/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM investments WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Investment not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Blog Posts ----
+router.get('/blog-posts', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM blog_posts ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/blog-posts/:id', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM blog_posts WHERE id = $1', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/blog-posts', async (req, res) => {
+  try {
+    const { title, slug, excerpt, content, image_url, category, is_published } = req.body;
+    const result = await pool.query(
+      `INSERT INTO blog_posts (title, slug, excerpt, content, image_url, category, is_published)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [title, slug, excerpt, content, image_url, category, is_published || false]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/blog-posts/:id', async (req, res) => {
+  try {
+    const { title, slug, excerpt, content, image_url, category, is_published } = req.body;
+    const result = await pool.query(
+      `UPDATE blog_posts
+       SET title = $1, slug = $2, excerpt = $3, content = $4, image_url = $5, category = $6, is_published = $7, updated_at = NOW()
+       WHERE id = $8 RETURNING *`,
+      [title, slug, excerpt, content, image_url, category, is_published, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/blog-posts/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM blog_posts WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Media ----
+router.get('/media', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM media ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/media', async (req, res) => {
+  try {
+    const { title, type, url, thumbnail_url, category, is_featured } = req.body;
+    const result = await pool.query(
+      `INSERT INTO media (title, type, url, thumbnail_url, category, is_featured)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [title, type, url, thumbnail_url, category, is_featured || false]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/media/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM media WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Media not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Site Content ----
+router.get('/site-content', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM site_content');
+    const content = {};
+    result.rows.forEach(row => { content[row.key] = row.value; });
+    res.json(content);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/site-content/:key', async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value } = req.body;
+    const result = await pool.query(
+      `INSERT INTO site_content (key, value, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()
+       RETURNING *`,
+      [key, value]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Support Info ----
+router.get('/support-info', async (req, res) => {
+  res.json({
+    email: process.env.SUPPORT_EMAIL || 'support@matthewdixie.com',
+    whatsapp: process.env.WHATSAPP_NUMBER || '+1234567890'
+  });
+});
+
+module.exports = router;
