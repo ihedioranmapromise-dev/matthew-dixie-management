@@ -194,7 +194,6 @@ const Admin = () => {
     }
     setUploading(true);
     try {
-      // Upload to Supabase Storage
       const file = mediaForm.file;
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
@@ -210,7 +209,6 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // Get public URL
       const { data: publicUrlData } = supabase.storage
         .from('media')
         .getPublicUrl(filePath);
@@ -228,6 +226,20 @@ const Admin = () => {
 
       const res = await api.post('/admin/media', mediaData, { headers });
       setMedia([res.data, ...media]);
+
+      // --- AUTO UPDATE HERO IMAGE ---
+      if (mediaForm.category === 'hero') {
+        try {
+          await api.put('/admin/site-content/hero_background_image', 
+            { value: publicUrl }, 
+            { headers }
+          );
+          await fetchPressContent();
+        } catch (updateErr) {
+          console.warn('Hero image updated in media but failed to update site_content:', updateErr);
+          alert('Media uploaded, but hero background was not updated automatically. Please set it manually in the Press tab.');
+        }
+      }
 
       // Reset form
       setMediaForm({ title: '', type: 'image', category: '', file: null, is_featured: false });
@@ -498,7 +510,6 @@ const Admin = () => {
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <h2 className="font-serif text-xl text-white mb-4">Media Library</h2>
             
-            {/* Upload Form */}
             <form onSubmit={handleMediaUpload} className="bg-white/5 rounded-xl p-4 border border-white/5 mb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -572,7 +583,6 @@ const Admin = () => {
               </div>
             </form>
 
-            {/* Media List */}
             <div className="grid grid-cols-4 gap-4">
               {media.map((item) => (
                 <div key={item.id} className="bg-white/5 rounded-xl p-3 border border-white/5 relative group">
