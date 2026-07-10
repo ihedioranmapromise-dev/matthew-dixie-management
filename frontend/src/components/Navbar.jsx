@@ -2,12 +2,14 @@ import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null');
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     navigate('/');
   };
 
@@ -23,6 +25,7 @@ const Navbar = () => {
           <Link to="/" className="text-white/60 hover:text-gold transition">Home</Link>
           <Link to="/tiers" className="text-white/60 hover:text-gold transition">Tiers</Link>
           <Link to="/investments" className="text-white/60 hover:text-gold transition">Invest</Link>
+          <Link to="/press" className="text-white/60 hover:text-gold transition">Press</Link>
           <Link to="/blog" className="text-white/60 hover:text-gold transition">Blog</Link>
         </div>
 
