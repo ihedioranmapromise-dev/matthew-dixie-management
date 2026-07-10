@@ -8,12 +8,9 @@ const Dashboard = () => {
   const [application, setApplication] = useState(null);
   const [fanCard, setFanCard] = useState(null);
   const [giftKit, setGiftKit] = useState(null);
-  const [supportInfo, setSupportInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [preference, setPreference] = useState('email');
-  const [updating, setUpdating] = useState(false);
 
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
   useEffect(() => {
     if (!token) {
@@ -25,27 +22,17 @@ const Dashboard = () => {
       try {
         const headers = { Authorization: `Bearer ${token}` };
 
-        // Fetch user profile
         const profileRes = await axios.get('/api/user/profile', { headers });
         setUser(profileRes.data);
 
-        // Fetch application
         const appRes = await axios.get('/api/user/application', { headers });
         setApplication(appRes.data);
-        if (appRes.data && appRes.data.preferred_channel) {
-          setPreference(appRes.data.preferred_channel);
-        }
 
-        // Fetch fan card and gift kit
         const cardRes = await axios.get('/api/user/fan-card', { headers });
         if (cardRes.data) {
           setFanCard(cardRes.data.fanCard);
           setGiftKit(cardRes.data.giftKit);
         }
-
-        // Fetch support info (email, whatsapp)
-        const supportRes = await axios.get('/api/admin/support-info', { headers });
-        setSupportInfo(supportRes.data);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         if (error.response?.status === 401) {
@@ -58,20 +45,6 @@ const Dashboard = () => {
 
     fetchDashboardData();
   }, [token, navigate]);
-
-  const updatePreference = async (channel) => {
-    setUpdating(true);
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-      await axios.put('/api/user/preference', { preferredChannel: channel }, { headers });
-      setPreference(channel);
-    } catch (error) {
-      console.error('Error updating preference:', error);
-      alert('Could not update preference. Please try again.');
-    } finally {
-      setUpdating(false);
-    }
-  };
 
   if (loading) {
     return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
@@ -172,67 +145,6 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-
-          {/* Communication Hub */}
-          <div className="bg-white/5 rounded-2xl p-6 border border-white/5 md:col-span-2">
-            <h2 className="font-serif text-xl text-white mb-4">📬 Communication Hub</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
-                <span className="text-2xl">✉️</span>
-                <div>
-                  <div className="text-sm font-medium text-white">Direct Email</div>
-                  <div className="text-sm text-white/40">{supportInfo?.email || 'support@matthewdixie.com'}</div>
-                  <a href={`mailto:${supportInfo?.email || 'support@matthewdixie.com'}`} className="text-xs text-gold hover:underline">Send email</a>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
-                <span className="text-2xl">💬</span>
-                <div>
-                  <div className="text-sm font-medium text-white">WhatsApp Support</div>
-                  <div className="text-sm text-white/40">{supportInfo?.whatsapp || '+1234567890'}</div>
-                  <a href={`https://wa.me/${(supportInfo?.whatsapp || '+1234567890').replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gold hover:underline">Chat now</a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Notification Settings */}
-          <div className="bg-white/5 rounded-2xl p-6 border border-white/5 md:col-span-2">
-            <h2 className="font-serif text-xl text-white mb-4">🔔 Notification Settings</h2>
-            <p className="text-sm text-white/40 mb-4">Choose how you receive status updates about your application and membership.</p>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="preference"
-                  value="email"
-                  checked={preference === 'email'}
-                  onChange={() => updatePreference('email')}
-                  disabled={updating}
-                  className="accent-gold"
-                />
-                <span className="text-white">Email</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="preference"
-                  value="whatsapp"
-                  checked={preference === 'whatsapp'}
-                  onChange={() => updatePreference('whatsapp')}
-                  disabled={updating}
-                  className="accent-gold"
-                />
-                <span className="text-white">WhatsApp</span>
-              </label>
-              {updating && <span className="text-xs text-white/30">Saving...</span>}
-            </div>
-            <p className="text-xs text-white/30 mt-3">
-              {preference === 'email'
-                ? '✅ Notifications will be sent to your email address.'
-                : '✅ Notifications will be sent to your WhatsApp number.'}
-            </p>
-          </div>
         </div>
       </div>
     </div>
