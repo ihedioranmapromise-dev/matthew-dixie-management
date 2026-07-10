@@ -1,6 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
 import api from '../api';
+
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -22,9 +28,8 @@ const Admin = () => {
   const [mediaForm, setMediaForm] = useState({
     title: '',
     type: 'image',
-    url: '',
-    thumbnail_url: '',
     category: '',
+    file: null,
     is_featured: false
   });
   const [tierForm, setTierForm] = useState({
@@ -88,6 +93,7 @@ const Admin = () => {
     fetchAll();
   }, []);
 
+  // Application status update
   const updateStatus = async (id, status) => {
     setProcessing({ ...processing, [id]: true });
     try {
@@ -106,6 +112,7 @@ const Admin = () => {
     setSelectedApp(null);
   };
 
+  // Tier management
   const startEditTier = (tier) => {
     setEditingTier(tier.id);
     setTierForm({
@@ -130,6 +137,7 @@ const Admin = () => {
     setTierForm({ ...tierForm, benefits });
   };
 
+  // Press content management
   const startEditPress = (key, value) => {
     setEditingPressKey(key);
     setPressForm({ key, value: value || '' });
@@ -147,6 +155,7 @@ const Admin = () => {
     } catch (error) { alert('Error saving press content'); }
   };
 
+  // Copy email template
   const copyEmailTemplate = () => {
     if (!selectedApp || !supportInfo) return;
     const amount = selectedApp.tier === 'explorer' ? 49 : selectedApp.tier === 'builder' ? 149 : 349;
@@ -156,6 +165,7 @@ const Admin = () => {
     }).catch(() => { prompt('Copy this template manually:', msg); });
   };
 
+  // User tier update
   const updateUserTier = async (userId, tier) => {
     try {
       await api.put(`/admin/users/${userId}/tier`, { tier }, { headers });
@@ -164,16 +174,68 @@ const Admin = () => {
     } catch (error) { alert('Error updating user tier'); }
   };
 
+  // Media upload handlers
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setMediaForm({ ...mediaForm, file });
+    }
+  };
+
   const handleMediaUpload = async (e) => {
     e.preventDefault();
+    if (!mediaForm.file) {
+      alert('Please select a file');
+      return;
+    }
+    if (!mediaForm.category) {
+      alert('Please select a category');
+      return;
+    }
     setUploading(true);
     try {
-      const res = await api.post('/admin/media', mediaForm, { headers });
+      // Upload to Supabase Storage
+      const file = mediaForm.file;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `media/${fileName}`;
+
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
+
+      const { data, error } = await supabase.storage
+        .from('media')
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // Save media metadata to database
+      const mediaData = {
+        title: mediaForm.title || file.name,
+        type: mediaForm.type,
+        url: publicUrl,
+        category: mediaForm.category,
+        is_featured: mediaForm.is_featured
+      };
+
+      const res = await api.post('/admin/media', mediaData, { headers });
       setMedia([res.data, ...media]);
-      setMediaForm({ title: '', type: 'image', url: '', thumbnail_url: '', category: '', is_featured: false });
-      alert('Media added successfully');
+
+      // Reset form
+      setMediaForm({ title: '', type: 'image', category: '', file: null, is_featured: false });
+      document.querySelector('input[type="file"]').value = '';
+      alert('Media uploaded successfully');
     } catch (error) {
-      alert('Error adding media');
+      console.error(error);
+      alert('Error uploading media: ' + error.message);
     } finally {
       setUploading(false);
     }
@@ -441,31 +503,71 @@ const Admin = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-white/40 mb-1">Title</label>
-                  <input type="text" value={mediaForm.title} onChange={(e) => setMediaForm({ ...mediaForm, title: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                  <input 
+                    type="text" 
+                    value={mediaForm.title} 
+                    onChange={(e) => setMediaForm({ ...mediaForm, title: e.target.value })} 
+                    className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" 
+                    placeholder="Image title"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs text-white/40 mb-1">Type</label>
-                  <select value={mediaForm.type} onChange={(e) => setMediaForm({ ...mediaForm, type: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm">
+                  <select 
+                    value={mediaForm.type} 
+                    onChange={(e) => setMediaForm({ ...mediaForm, type: e.target.value })} 
+                    className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
+                  >
                     <option value="image">Image</option>
                     <option value="video">Video</option>
                   </select>
                 </div>
               </div>
-              <div className="mt-2">
-                <label className="block text-xs text-white/40 mb-1">File URL</label>
-                <input type="text" value={mediaForm.url} onChange={(e) => setMediaForm({ ...mediaForm, url: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" placeholder="https://..." />
-              </div>
+              
               <div className="mt-2">
                 <label className="block text-xs text-white/40 mb-1">Category</label>
-                <input type="text" value={mediaForm.category} onChange={(e) => setMediaForm({ ...mediaForm, category: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                <select 
+                  value={mediaForm.category} 
+                  onChange={(e) => setMediaForm({ ...mediaForm, category: e.target.value })} 
+                  className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
+                >
+                  <option value="">Select category...</option>
+                  <option value="hero">Hero</option>
+                  <option value="press">Press</option>
+                  <option value="about">About</option>
+                  <option value="blog">Blog</option>
+                  <option value="gallery">Gallery</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
+              
+              <div className="mt-2">
+                <label className="block text-xs text-white/40 mb-1">Upload File</label>
+                <input 
+                  type="file" 
+                  accept="image/*,video/*" 
+                  onChange={handleFileSelect} 
+                  className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer"
+                />
+                <p className="text-xs text-white/30 mt-1">Supported: JPG, PNG, GIF, MP4, WebM</p>
+              </div>
+              
               <div className="flex items-center gap-4 mt-2">
                 <label className="flex items-center gap-2 text-sm text-white/60">
-                  <input type="checkbox" checked={mediaForm.is_featured} onChange={(e) => setMediaForm({ ...mediaForm, is_featured: e.target.checked })} className="accent-gold" />
+                  <input 
+                    type="checkbox" 
+                    checked={mediaForm.is_featured} 
+                    onChange={(e) => setMediaForm({ ...mediaForm, is_featured: e.target.checked })} 
+                    className="accent-gold" 
+                  />
                   Featured
                 </label>
-                <button type="submit" disabled={uploading} className="px-4 py-2 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition disabled:opacity-50">
-                  {uploading ? 'Uploading...' : 'Add Media'}
+                <button 
+                  type="submit" 
+                  disabled={uploading || !mediaForm.file} 
+                  className="px-4 py-2 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition disabled:opacity-50"
+                >
+                  {uploading ? 'Uploading...' : 'Upload Media'}
                 </button>
               </div>
             </form>
