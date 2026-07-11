@@ -24,18 +24,32 @@ const Press = () => {
   const episodes = content.press_featured_episodes?.split('\n').filter(Boolean) || [];
   const stories = content.press_stories?.split('\n').filter(Boolean) || [];
 
+  // Use the profile image from site_content or fallback to a generated avatar
+  const profileImage = content.profile_image_url || 'https://ui-avatars.com/api/?name=Matthew+Dixie&size=300&background=C9A96E&color=1A1A1A&bold=true';
+
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-5xl mx-auto">
-        {/* Logo */}
+        {/* Logo (if any) */}
         {content.logo_url && (
           <div className="mb-6">
             <img src={content.logo_url} alt="Matthew Dixie Logo" className="h-20 w-auto" />
           </div>
         )}
 
-        <h1 className="font-serif text-4xl text-white mb-2">Press Kit</h1>
-        <p className="text-warm-sand-light opacity-70 mb-8">Media resources for Matthew Dixie</p>
+        {/* Header with Profile Image and Name */}
+        <div className="flex flex-col md:flex-row items-center gap-8 mb-8">
+          <img
+            src={profileImage}
+            alt="Matthew Dixie"
+            className="w-40 h-40 md:w-56 md:h-56 rounded-full object-cover border-4 border-gold shadow-xl"
+          />
+          <div>
+            <h1 className="font-serif text-4xl md:text-5xl text-white">Matthew Dixie</h1>
+            <p className="text-warm-sand-light opacity-70 text-lg">Press Kit</p>
+            <p className="text-warm-sand-light opacity-50 text-sm">Media resources for Matthew Dixie</p>
+          </div>
+        </div>
 
         {/* Show Info */}
         <div className="bg-white/5 rounded-2xl p-6 border border-white/5 mb-6">
