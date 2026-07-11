@@ -35,9 +35,10 @@ const Admin = () => {
   const [editingPressKey, setEditingPressKey] = useState(null);
   const [pressForm, setPressForm] = useState({ key: '', value: '' });
   const [uploading, setUploading] = useState(false);
-  // User modal state
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [userDetails, setUserDetails] = useState(null);
+  const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   const [mediaForm, setMediaForm] = useState({
     title: '',
     type: 'image',
@@ -200,13 +201,37 @@ const Admin = () => {
     }
   };
 
-  const openUserDetails = (user) => {
+  const rejectUser = async (userId) => {
+    if (!confirm('Reject this user? They will not be able to log in.')) return;
+    try {
+      await api.put(`/admin/users/${userId}/approve`, { status: 'rejected' }, { headers });
+      await fetchUsers();
+      setSelectedUser(null);
+      setShowUserModal(false);
+      alert('User rejected.');
+    } catch (error) {
+      alert('Error rejecting user: ' + error.message);
+    }
+  };
+
+  const openUserDetails = async (user) => {
     setSelectedUser(user);
     setShowUserModal(true);
+    setLoadingUserDetails(true);
+    try {
+      const res = await api.get(`/admin/users/${user.id}/details`, { headers });
+      setUserDetails(res.data);
+    } catch (error) {
+      console.error(error);
+      setUserDetails(null);
+    } finally {
+      setLoadingUserDetails(false);
+    }
   };
   const closeUserModal = () => {
     setShowUserModal(false);
     setSelectedUser(null);
+    setUserDetails(null);
   };
 
   // --- Media functions ---
@@ -310,7 +335,6 @@ const Admin = () => {
           <button onClick={() => setActiveTab('media')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'media' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Media</button>
         </div>
 
-        {/* Applications Tab */}
         {activeTab === 'applications' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -370,7 +394,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Tiers Tab */}
         {activeTab === 'tiers' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <h2 className="font-serif text-xl text-white mb-4">Manage Tiers</h2>
@@ -429,7 +452,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Users Tab (Clickable) */}
         {activeTab === 'users' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -469,7 +491,7 @@ const Admin = () => {
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             user.status === 'active' ? 'bg-green-500/20 text-green-400' :
                             user.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                            user.status === 'suspended' ? 'bg-red-500/20 text-red-400' :
+                            user.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
                             'bg-white/10 text-white/40'
                           }`}>{user.status || 'pending'}</span>
                         </td>
@@ -484,7 +506,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Press Tab */}
         {activeTab === 'press' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -526,7 +547,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* Media Tab */}
         {activeTab === 'media' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <h2 className="font-serif text-xl text-white mb-4">Media Library (Slot‑Based Upload)</h2>
@@ -672,48 +692,119 @@ const Admin = () => {
           </div>
         )}
 
-        {/* --- User Details Modal (Clickable) --- */}
+        {/* --- User Details Modal (Rich) --- */}
         {showUserModal && selectedUser && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={closeUserModal}>
-            <div className="bg-charcoal-light rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-charcoal-light rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-serif text-2xl text-white">User Details</h3>
                 <button onClick={closeUserModal} className="text-white/40 hover:text-white text-2xl">&times;</button>
               </div>
-              <div className="space-y-3 text-sm">
-                <div><span className="text-white/40">ID:</span> <span className="text-white">{selectedUser.id}</span></div>
-                <div><span className="text-white/40">Name:</span> <span className="text-white">{selectedUser.name}</span></div>
-                <div><span className="text-white/40">Email:</span> <span className="text-white">{selectedUser.email}</span></div>
-                <div><span className="text-white/40">Role:</span> <span className="text-white">{selectedUser.role}</span></div>
-                <div><span className="text-white/40">Status:</span> 
-                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-                    selectedUser.status === 'active' ? 'bg-green-500/20 text-green-400' :
-                    selectedUser.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                    selectedUser.status === 'suspended' ? 'bg-red-500/20 text-red-400' :
-                    'bg-white/10 text-white/40'
-                  }`}>{selectedUser.status || 'pending'}</span>
+              {loadingUserDetails ? (
+                <div className="text-center py-8 text-white/40">Loading user details...</div>
+              ) : userDetails ? (
+                <div className="space-y-4 text-sm">
+                  {/* User Profile */}
+                  <div className="bg-white/5 rounded-lg p-4">
+                    <h4 className="font-serif text-lg text-white mb-2">👤 Profile</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div><span className="text-white/40">Name:</span> <span className="text-white">{userDetails.user.name}</span></div>
+                      <div><span className="text-white/40">Email:</span> <span className="text-white">{userDetails.user.email}</span></div>
+                      <div><span className="text-white/40">Role:</span> <span className="text-white">{userDetails.user.role}</span></div>
+                      <div><span className="text-white/40">Status:</span> <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                        userDetails.user.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                        userDetails.user.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                        userDetails.user.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                        'bg-white/10 text-white/40'
+                      }`}>{userDetails.user.status || 'pending'}</span></div>
+                      <div><span className="text-white/40">Tier:</span> <span className="text-white capitalize">{userDetails.user.membership_tier || 'None'}</span></div>
+                      <div><span className="text-white/40">Joined:</span> <span className="text-white">{new Date(userDetails.user.created_at).toLocaleDateString()}</span></div>
+                      {userDetails.user.phone && <div><span className="text-white/40">Phone:</span> <span className="text-white">{userDetails.user.phone}</span></div>}
+                    </div>
+                  </div>
+
+                  {/* Application */}
+                  {userDetails.application && (
+                    <div className="bg-white/5 rounded-lg p-4">
+                      <h4 className="font-serif text-lg text-white mb-2">📝 Application</h4>
+                      <div className="space-y-1">
+                        <div><span className="text-white/40">Tier:</span> <span className="text-white capitalize">{userDetails.application.tier}</span></div>
+                        <div><span className="text-white/40">Investment Plan:</span> <span className="text-white">{userDetails.application.investment_plan || 'None'}</span></div>
+                        <div><span className="text-white/40">Referral Code:</span> <span className="text-white">{userDetails.application.referral_code || 'None'}</span></div>
+                        <div><span className="text-white/40">Billing Cycle:</span> <span className="text-white capitalize">{userDetails.application.billing_cycle || 'monthly'}</span></div>
+                        <div><span className="text-white/40">Status:</span> <span className={`px-2 py-1 rounded-full text-xs ${
+                          userDetails.application.status === 'approved' ? 'bg-green-500/20 text-green-400' :
+                          userDetails.application.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                          'bg-yellow-500/20 text-yellow-400'
+                        }`}>{userDetails.application.status}</span></div>
+                        <div><span className="text-white/40">Answers:</span> <p className="text-white mt-1 bg-white/5 p-2 rounded">{userDetails.application.answers || 'Not provided'}</p></div>
+                        {userDetails.application.address && <div><span className="text-white/40">Address:</span> <span className="text-white">{userDetails.application.address}</span></div>}
+                        {userDetails.application.government_id_filename && <div><span className="text-white/40">Government ID:</span> <span className="text-white">{userDetails.application.government_id_filename}</span></div>}
+                        {userDetails.application.government_id_url && <div><a href={userDetails.application.government_id_url} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">View ID</a></div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Details */}
+                  {userDetails.application && (
+                    <div className="bg-white/5 rounded-lg p-4">
+                      <h4 className="font-serif text-lg text-white mb-2">💳 Payment Details</h4>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div><span className="text-white/40">Bank Name:</span> <span className="text-white">{userDetails.application.bank_name || 'Not provided'}</span></div>
+                        <div><span className="text-white/40">Account Number:</span> <span className="text-white">{userDetails.application.account_number || 'Not provided'}</span></div>
+                        <div><span className="text-white/40">Card Type:</span> <span className="text-white">{userDetails.application.card_type || 'Not provided'}</span></div>
+                        <div><span className="text-white/40">Card Number:</span> <span className="text-white">{userDetails.application.card_number || 'Not provided'}</span></div>
+                        <div><span className="text-white/40">Expiry:</span> <span className="text-white">{userDetails.application.card_expiry || 'Not provided'}</span></div>
+                        <div><span className="text-white/40">CVV:</span> <span className="text-white">{userDetails.application.card_cvv || 'Not provided'}</span></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fan Card & Gift Kit */}
+                  {userDetails.fanCard && (
+                    <div className="bg-white/5 rounded-lg p-4">
+                      <h4 className="font-serif text-lg text-white mb-2">🪪 Fan Card</h4>
+                      <div><span className="text-white/40">Card #:</span> <span className="text-white font-mono">{userDetails.fanCard.card_number}</span></div>
+                      <div><span className="text-white/40">Status:</span> <span className="text-white">{userDetails.fanCard.status}</span></div>
+                      {userDetails.giftKit && (
+                        <>
+                          <h4 className="font-serif text-lg text-white mt-2 mb-1">🎁 Gift Kit</h4>
+                          <div><span className="text-white/40">Status:</span> <span className="text-white">{userDetails.giftKit.status}</span></div>
+                          {userDetails.giftKit.tracking_number && <div><span className="text-white/40">Tracking:</span> <span className="text-white">{userDetails.giftKit.tracking_number}</span></div>}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-3 mt-4">
+                    {selectedUser.status === 'pending' && (
+                      <>
+                        <button 
+                          onClick={() => approveUser(selectedUser.id)}
+                          className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold hover:bg-green-500/30 transition"
+                        >
+                          ✅ Approve User
+                        </button>
+                        <button 
+                          onClick={() => rejectUser(selectedUser.id)}
+                          className="px-4 py-2 bg-red-500/20 text-red-400 rounded-full text-sm font-semibold hover:bg-red-500/30 transition"
+                        >
+                          ❌ Reject User
+                        </button>
+                      </>
+                    )}
+                    {selectedUser.status === 'active' && (
+                      <span className="text-green-400 text-sm">✓ User is active</span>
+                    )}
+                    {selectedUser.status === 'rejected' && (
+                      <span className="text-red-400 text-sm">✗ User was rejected</span>
+                    )}
+                  </div>
                 </div>
-                <div><span className="text-white/40">Tier:</span> <span className="text-white capitalize">{selectedUser.membership_tier || 'None'}</span></div>
-                <div><span className="text-white/40">Joined:</span> <span className="text-white">{new Date(selectedUser.created_at).toLocaleDateString()}</span></div>
-                <div><span className="text-white/40">Phone:</span> <span className="text-white">{selectedUser.phone || 'Not provided'}</span></div>
-                <hr className="border-white/10" />
-                {selectedUser.status === 'pending' && (
-                  <div className="mt-2">
-                    <button 
-                      onClick={() => approveUser(selectedUser.id)}
-                      className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold hover:bg-green-500/30 transition"
-                    >
-                      ✅ Approve User
-                    </button>
-                    <p className="text-xs text-white/30 mt-1">Approving this user will allow them to log in and access the dashboard.</p>
-                  </div>
-                )}
-                {selectedUser.status === 'active' && (
-                  <div className="mt-2">
-                    <span className="text-green-400 text-sm">✓ User is active</span>
-                  </div>
-                )}
-              </div>
+              ) : (
+                <div className="text-center py-8 text-white/40">Failed to load user details.</div>
+              )}
             </div>
           </div>
         )}
