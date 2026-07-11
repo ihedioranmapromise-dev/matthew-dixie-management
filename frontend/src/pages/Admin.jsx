@@ -11,6 +11,7 @@ const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supa
 // Slot configuration
 const SLOTS = [
   { key: 'hero_background', label: 'Hero Background', siteKey: 'hero_background_image' },
+  { key: 'profile_image', label: 'Profile Image (Press)', siteKey: 'profile_image_url' },
   { key: 'press_image_1', label: 'Press Image 1', siteKey: 'press_image_1_url' },
   { key: 'press_image_2', label: 'Press Image 2', siteKey: 'press_image_2_url' },
   { key: 'press_image_3', label: 'Press Image 3', siteKey: 'press_image_3_url' },
@@ -34,6 +35,9 @@ const Admin = () => {
   const [editingPressKey, setEditingPressKey] = useState(null);
   const [pressForm, setPressForm] = useState({ key: '', value: '' });
   const [uploading, setUploading] = useState(false);
+  // User modal state
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [mediaForm, setMediaForm] = useState({
     title: '',
     type: 'image',
@@ -52,7 +56,6 @@ const Admin = () => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
-  // Fetch functions
   const fetchSupportInfo = async () => {
     try {
       const res = await api.get('/admin/support-info', { headers });
@@ -103,7 +106,7 @@ const Admin = () => {
     fetchAll();
   }, []);
 
-  // Application status update
+  // --- Application functions ---
   const updateStatus = async (id, status) => {
     setProcessing({ ...processing, [id]: true });
     try {
@@ -122,7 +125,7 @@ const Admin = () => {
     setSelectedApp(null);
   };
 
-  // Tier management
+  // --- Tier functions ---
   const startEditTier = (tier) => {
     setEditingTier(tier.id);
     setTierForm({
@@ -147,7 +150,7 @@ const Admin = () => {
     setTierForm({ ...tierForm, benefits });
   };
 
-  // Press content management
+  // --- Press content functions ---
   const startEditPress = (key, value) => {
     setEditingPressKey(key);
     setPressForm({ key, value: value || '' });
@@ -165,7 +168,7 @@ const Admin = () => {
     } catch (error) { alert('Error saving press content'); }
   };
 
-  // Copy email template
+  // --- Email template copy ---
   const copyEmailTemplate = () => {
     if (!selectedApp || !supportInfo) return;
     const amount = selectedApp.tier === 'explorer' ? 49 : selectedApp.tier === 'builder' ? 149 : 349;
@@ -175,7 +178,7 @@ const Admin = () => {
     }).catch(() => { prompt('Copy this template manually:', msg); });
   };
 
-  // User tier update
+  // --- User functions ---
   const updateUserTier = async (userId, tier) => {
     try {
       await api.put(`/admin/users/${userId}/tier`, { tier }, { headers });
@@ -184,7 +187,29 @@ const Admin = () => {
     } catch (error) { alert('Error updating user tier'); }
   };
 
-  // Media upload handlers
+  const approveUser = async (userId) => {
+    if (!confirm('Approve this user? They will be able to log in and access the dashboard.')) return;
+    try {
+      await api.put(`/admin/users/${userId}/approve`, {}, { headers });
+      await fetchUsers();
+      setSelectedUser(null);
+      setShowUserModal(false);
+      alert('User approved successfully!');
+    } catch (error) {
+      alert('Error approving user: ' + error.message);
+    }
+  };
+
+  const openUserDetails = (user) => {
+    setSelectedUser(user);
+    setShowUserModal(true);
+  };
+  const closeUserModal = () => {
+    setShowUserModal(false);
+    setSelectedUser(null);
+  };
+
+  // --- Media functions ---
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -225,7 +250,6 @@ const Admin = () => {
 
       const publicUrl = publicUrlData.publicUrl;
 
-      // Save media metadata to database
       const mediaData = {
         title: mediaForm.title || file.name,
         type: mediaForm.type,
@@ -237,7 +261,7 @@ const Admin = () => {
       const res = await api.post('/admin/media', mediaData, { headers });
       setMedia([res.data, ...media]);
 
-      // --- AUTO UPDATE SITE CONTENT BASED ON SLOT ---
+      // Update site content if slot matches
       const slot = SLOTS.find(s => s.key === mediaForm.category);
       if (slot) {
         try {
@@ -249,7 +273,6 @@ const Admin = () => {
         }
       }
 
-      // Reset form
       setMediaForm({ title: '', type: 'image', category: '', file: null, is_featured: false });
       document.querySelector('input[type="file"]').value = '';
       alert('Media uploaded successfully');
@@ -287,6 +310,7 @@ const Admin = () => {
           <button onClick={() => setActiveTab('media')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'media' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Media</button>
         </div>
 
+        {/* Applications Tab */}
         {activeTab === 'applications' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -346,6 +370,7 @@ const Admin = () => {
           </div>
         )}
 
+        {/* Tiers Tab */}
         {activeTab === 'tiers' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <h2 className="font-serif text-xl text-white mb-4">Manage Tiers</h2>
@@ -404,6 +429,7 @@ const Admin = () => {
           </div>
         )}
 
+        {/* Users Tab (Clickable) */}
         {activeTab === 'users' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -418,9 +444,9 @@ const Admin = () => {
                     <th className="text-left py-2 px-4 text-white/40">Name</th>
                     <th className="text-left py-2 px-4 text-white/40">Email</th>
                     <th className="text-left py-2 px-4 text-white/40">Role</th>
+                    <th className="text-left py-2 px-4 text-white/40">Status</th>
                     <th className="text-left py-2 px-4 text-white/40">Tier</th>
                     <th className="text-left py-2 px-4 text-white/40">Joined</th>
-                    <th className="text-left py-2 px-4 text-white/40">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -428,7 +454,7 @@ const Admin = () => {
                     <tr><td colSpan="7" className="text-center py-8 text-white/30">No users found</td></tr>
                   ) : (
                     users.map((user) => (
-                      <tr key={user.id} className="border-b border-white/5">
+                      <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition" onClick={() => openUserDetails(user)}>
                         <td className="py-2 px-4 text-white/60">{user.id}</td>
                         <td className="py-2 px-4 text-white/60">{user.name}</td>
                         <td className="py-2 px-4 text-white/60">{user.email}</td>
@@ -440,30 +466,15 @@ const Admin = () => {
                           }`}>{user.role}</span>
                         </td>
                         <td className="py-2 px-4">
-                          <select
-                            value={user.membership_tier || ''}
-                            onChange={(e) => updateUserTier(user.id, e.target.value)}
-                            className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:border-gold"
-                          >
-                            <option value="">None</option>
-                            <option value="explorer">Explorer</option>
-                            <option value="builder">Builder</option>
-                            <option value="master">Master</option>
-                          </select>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            user.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                            user.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                            user.status === 'suspended' ? 'bg-red-500/20 text-red-400' :
+                            'bg-white/10 text-white/40'
+                          }`}>{user.status || 'pending'}</span>
                         </td>
+                        <td className="py-2 px-4 text-white/60 capitalize">{user.membership_tier || 'None'}</td>
                         <td className="py-2 px-4 text-white/40">{new Date(user.created_at).toLocaleDateString()}</td>
-                        <td className="py-2 px-4">
-                          <button
-                            onClick={() => {
-                              if (confirm(`Delete user ${user.email}?`)) {
-                                alert('Delete functionality coming soon.');
-                              }
-                            }}
-                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition"
-                          >
-                            Delete
-                          </button>
-                        </td>
                       </tr>
                     ))
                   )}
@@ -473,6 +484,7 @@ const Admin = () => {
           </div>
         )}
 
+        {/* Press Tab */}
         {activeTab === 'press' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <div className="flex items-center justify-between mb-4">
@@ -514,6 +526,7 @@ const Admin = () => {
           </div>
         )}
 
+        {/* Media Tab */}
         {activeTab === 'media' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
             <h2 className="font-serif text-xl text-white mb-4">Media Library (Slot‑Based Upload)</h2>
@@ -610,6 +623,7 @@ const Admin = () => {
           </div>
         )}
 
+        {/* --- Application Details Modal --- */}
         {showModal && selectedApp && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={closeModal}>
             <div className="bg-charcoal-light rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
@@ -654,6 +668,52 @@ const Admin = () => {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* --- User Details Modal (Clickable) --- */}
+        {showUserModal && selectedUser && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={closeUserModal}>
+            <div className="bg-charcoal-light rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-2xl text-white">User Details</h3>
+                <button onClick={closeUserModal} className="text-white/40 hover:text-white text-2xl">&times;</button>
+              </div>
+              <div className="space-y-3 text-sm">
+                <div><span className="text-white/40">ID:</span> <span className="text-white">{selectedUser.id}</span></div>
+                <div><span className="text-white/40">Name:</span> <span className="text-white">{selectedUser.name}</span></div>
+                <div><span className="text-white/40">Email:</span> <span className="text-white">{selectedUser.email}</span></div>
+                <div><span className="text-white/40">Role:</span> <span className="text-white">{selectedUser.role}</span></div>
+                <div><span className="text-white/40">Status:</span> 
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs ${
+                    selectedUser.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                    selectedUser.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                    selectedUser.status === 'suspended' ? 'bg-red-500/20 text-red-400' :
+                    'bg-white/10 text-white/40'
+                  }`}>{selectedUser.status || 'pending'}</span>
+                </div>
+                <div><span className="text-white/40">Tier:</span> <span className="text-white capitalize">{selectedUser.membership_tier || 'None'}</span></div>
+                <div><span className="text-white/40">Joined:</span> <span className="text-white">{new Date(selectedUser.created_at).toLocaleDateString()}</span></div>
+                <div><span className="text-white/40">Phone:</span> <span className="text-white">{selectedUser.phone || 'Not provided'}</span></div>
+                <hr className="border-white/10" />
+                {selectedUser.status === 'pending' && (
+                  <div className="mt-2">
+                    <button 
+                      onClick={() => approveUser(selectedUser.id)}
+                      className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold hover:bg-green-500/30 transition"
+                    >
+                      ✅ Approve User
+                    </button>
+                    <p className="text-xs text-white/30 mt-1">Approving this user will allow them to log in and access the dashboard.</p>
+                  </div>
+                )}
+                {selectedUser.status === 'active' && (
+                  <div className="mt-2">
+                    <span className="text-green-400 text-sm">✓ User is active</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
