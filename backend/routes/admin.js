@@ -6,6 +6,7 @@ const { pool } = require('../config/db');
 const Application = require('../models/Application');
 const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
+const User = require("../models/User");
 const User = require('../models/User');
 const router = express.Router();
 
@@ -311,3 +312,15 @@ router.get('/support-info', async (req, res) => {
 });
 
 module.exports = router;
+
+// ---- User Approval ----
+router.put('/users/:id/approve', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.updateStatus(userId, 'active');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
