@@ -52,13 +52,20 @@ const Auth = () => {
         sessionStorage.setItem('user', JSON.stringify(user));
       }
 
+      // Check if user is pending
+      if (user.status === 'pending') {
+        navigate('/pending');
+        return;
+      }
+
       if (user.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/dashboard');
       }
     } catch (error) {
-      setError(error.response?.data?.error || 'Something went wrong. Please try again.');
+      const msg = error.response?.data?.error || 'Something went wrong. Please try again.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
