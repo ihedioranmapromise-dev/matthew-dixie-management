@@ -7,7 +7,6 @@ const Application = require('../models/Application');
 const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
 const User = require("../models/User");
-const User = require('../models/User');
 const router = express.Router();
 
 // Admin login – password only
