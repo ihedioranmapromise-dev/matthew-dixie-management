@@ -323,3 +323,53 @@ router.put('/users/:id/approve', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ---- User Details (full profile with application, fan card, gift kit) ----
+router.get('/users/:id/details', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Get user
+    const userResult = await pool.query(
+      'SELECT id, name, email, role, status, membership_tier, phone, created_at FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const user = userResult.rows[0];
+    
+    // Get application
+    const appResult = await pool.query(
+      'SELECT * FROM applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [userId]
+    );
+    const application = appResult.rows[0] || null;
+    
+    // Get fan card
+    const cardResult = await pool.query(
+      'SELECT * FROM fan_cards WHERE user_id = $1 ORDER BY issued_at DESC LIMIT 1',
+      [userId]
+    );
+    const fanCard = cardResult.rows[0] || null;
+    
+    // Get gift kit (if fan card exists)
+    let giftKit = null;
+    if (fanCard) {
+      const giftResult = await pool.query(
+        'SELECT * FROM gift_kits WHERE fan_card_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [fanCard.id]
+      );
+      giftKit = giftResult.rows[0] || null;
+    }
+    
+    res.json({
+      user,
+      application,
+      fanCard,
+      giftKit
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
