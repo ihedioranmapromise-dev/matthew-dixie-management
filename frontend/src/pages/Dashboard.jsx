@@ -25,6 +25,12 @@ const Dashboard = () => {
         const profileRes = await axios.get('/api/user/profile', { headers });
         setUser(profileRes.data);
 
+        // If user is pending, show pending message instead of fetching other data
+        if (profileRes.data.status === 'pending') {
+          setLoading(false);
+          return;
+        }
+
         const appRes = await axios.get('/api/user/application', { headers });
         setApplication(appRes.data);
 
@@ -50,6 +56,25 @@ const Dashboard = () => {
     return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
   }
 
+  // If user is pending, show pending message
+  if (user?.status === 'pending') {
+    return (
+      <div className="min-h-screen bg-charcoal text-white flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white/5 rounded-2xl p-8 border border-white/5 text-center">
+          <div className="text-6xl mb-4">⏳</div>
+          <h2 className="font-serif text-3xl text-white mb-2">Account Pending</h2>
+          <p className="text-warm-sand-light opacity-70">
+            Your account is pending approval. You will receive a notification when your account is approved.
+          </p>
+          <p className="text-sm text-white/40 mt-4">
+            If you have any questions, please contact support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular dashboard for approved users
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
