@@ -8,6 +8,15 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
+// Slot configuration
+const SLOTS = [
+  { key: 'hero_background', label: 'Hero Background', siteKey: 'hero_background_image' },
+  { key: 'press_image_1', label: 'Press Image 1', siteKey: 'press_image_1_url' },
+  { key: 'press_image_2', label: 'Press Image 2', siteKey: 'press_image_2_url' },
+  { key: 'press_image_3', label: 'Press Image 3', siteKey: 'press_image_3_url' },
+  { key: 'about_image', label: 'About Image', siteKey: 'about_image_url' },
+];
+
 const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('applications');
@@ -43,6 +52,7 @@ const Admin = () => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
+  // Fetch functions
   const fetchSupportInfo = async () => {
     try {
       const res = await api.get('/admin/support-info', { headers });
@@ -189,7 +199,7 @@ const Admin = () => {
       return;
     }
     if (!mediaForm.category) {
-      alert('Please select a category');
+      alert('Please select a slot');
       return;
     }
     setUploading(true);
@@ -227,17 +237,15 @@ const Admin = () => {
       const res = await api.post('/admin/media', mediaData, { headers });
       setMedia([res.data, ...media]);
 
-      // --- AUTO UPDATE HERO IMAGE ---
-      if (mediaForm.category === 'hero') {
+      // --- AUTO UPDATE SITE CONTENT BASED ON SLOT ---
+      const slot = SLOTS.find(s => s.key === mediaForm.category);
+      if (slot) {
         try {
-          await api.put('/admin/site-content/hero_background_image', 
-            { value: publicUrl }, 
-            { headers }
-          );
+          await api.put(`/admin/site-content/${slot.siteKey}`, { value: publicUrl }, { headers });
           await fetchPressContent();
         } catch (updateErr) {
-          console.warn('Hero image updated in media but failed to update site_content:', updateErr);
-          alert('Media uploaded, but hero background was not updated automatically. Please set it manually in the Press tab.');
+          console.warn('Media saved but failed to update site_content:', updateErr);
+          alert('Media uploaded, but the corresponding slot was not updated automatically. You can set it manually in the Press tab.');
         }
       }
 
@@ -472,7 +480,7 @@ const Admin = () => {
               <span className="text-sm text-white/40">Manage press kit content</span>
             </div>
             <div className="space-y-4">
-              {Object.entries(pressContent).filter(([key]) => key.startsWith('press_')).map(([key, value]) => (
+              {Object.entries(pressContent).filter(([key]) => key.startsWith('press_') || key.startsWith('hero_') || key.startsWith('about_')).map(([key, value]) => (
                 <div key={key} className="bg-white/5 rounded-lg p-4 border border-white/5">
                   {editingPressKey === key ? (
                     <div className="space-y-2">
@@ -499,8 +507,8 @@ const Admin = () => {
                   )}
                 </div>
               ))}
-              {Object.keys(pressContent).filter(k => k.startsWith('press_')).length === 0 && (
-                <p className="text-white/30 text-sm">No press content found. Please add press_* keys to site_content.</p>
+              {Object.keys(pressContent).filter(k => k.startsWith('press_') || k.startsWith('hero_') || k.startsWith('about_')).length === 0 && (
+                <p className="text-white/30 text-sm">No content found. Add keys like hero_background_image, press_image_1, etc.</p>
               )}
             </div>
           </div>
@@ -508,7 +516,7 @@ const Admin = () => {
 
         {activeTab === 'media' && (
           <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
-            <h2 className="font-serif text-xl text-white mb-4">Media Library</h2>
+            <h2 className="font-serif text-xl text-white mb-4">Media Library (Slot‑Based Upload)</h2>
             
             <form onSubmit={handleMediaUpload} className="bg-white/5 rounded-xl p-4 border border-white/5 mb-6">
               <div className="grid grid-cols-2 gap-4">
@@ -536,20 +544,18 @@ const Admin = () => {
               </div>
               
               <div className="mt-2">
-                <label className="block text-xs text-white/40 mb-1">Category</label>
+                <label className="block text-xs text-white/40 mb-1">Slot (where to place this media)</label>
                 <select 
                   value={mediaForm.category} 
                   onChange={(e) => setMediaForm({ ...mediaForm, category: e.target.value })} 
                   className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
                 >
-                  <option value="">Select category...</option>
-                  <option value="hero">Hero</option>
-                  <option value="press">Press</option>
-                  <option value="about">About</option>
-                  <option value="blog">Blog</option>
-                  <option value="gallery">Gallery</option>
-                  <option value="other">Other</option>
+                  <option value="">Select a slot...</option>
+                  {SLOTS.map((slot) => (
+                    <option key={slot.key} value={slot.key}>{slot.label}</option>
+                  ))}
                 </select>
+                <p className="text-xs text-white/30 mt-1">The media will automatically be placed in the selected slot.</p>
               </div>
               
               <div className="mt-2">
@@ -584,18 +590,21 @@ const Admin = () => {
             </form>
 
             <div className="grid grid-cols-4 gap-4">
-              {media.map((item) => (
-                <div key={item.id} className="bg-white/5 rounded-xl p-3 border border-white/5 relative group">
-                  {item.type === 'image' && <img src={item.url} alt={item.title} className="w-full h-32 object-cover rounded" />}
-                  {item.type === 'video' && <div className="w-full h-32 bg-black/50 rounded flex items-center justify-center text-2xl">🎬</div>}
-                  <div className="mt-2">
-                    <div className="text-xs text-white/80 truncate">{item.title || 'Untitled'}</div>
-                    <div className="text-xs text-white/30 truncate">{item.category || 'Uncategorized'}</div>
-                    {item.is_featured && <span className="text-xs text-gold">⭐ Featured</span>}
+              {media.map((item) => {
+                const slot = SLOTS.find(s => s.key === item.category);
+                return (
+                  <div key={item.id} className="bg-white/5 rounded-xl p-3 border border-white/5 relative group">
+                    {item.type === 'image' && <img src={item.url} alt={item.title} className="w-full h-32 object-cover rounded" />}
+                    {item.type === 'video' && <div className="w-full h-32 bg-black/50 rounded flex items-center justify-center text-2xl">🎬</div>}
+                    <div className="mt-2">
+                      <div className="text-xs text-white/80 truncate">{item.title || 'Untitled'}</div>
+                      <div className="text-xs text-white/30 truncate">{slot ? slot.label : item.category || 'No slot'}</div>
+                      {item.is_featured && <span className="text-xs text-gold">⭐ Featured</span>}
+                    </div>
+                    <button onClick={() => deleteMedia(item.id)} className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition">✕</button>
                   </div>
-                  <button onClick={() => deleteMedia(item.id)} className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full w-6 h-6 text-xs opacity-0 group-hover:opacity-100 transition">✕</button>
-                </div>
-              ))}
+                );
+              })}
               {media.length === 0 && <p className="text-white/30 text-sm col-span-4 text-center py-8">No media uploaded yet.</p>}
             </div>
           </div>
