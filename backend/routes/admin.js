@@ -53,21 +53,31 @@ router.get('/applications/:id', async (req, res) => {
   }
 });
 
-router.put('/applications/:id', async (req, res) => {
+// ---- Update Application Tier ----
+router.put('/applications/:id/tier', async (req, res) => {
   try {
-    const { status, adminNotes, invoiceDetails } = req.body;
-    const app = await Application.findById(req.params.id);
-    if (!app) return res.status(404).json({ error: 'Application not found' });
+    const { tier } = req.body;
+    const appId = req.params.id;
 
-    const updated = await Application.updateStatus(req.params.id, status, adminNotes, invoiceDetails);
+    // Update application tier
+    const result = await pool.query(
+      'UPDATE applications SET tier = $1 WHERE id = $2 RETURNING *',
+      [tier, appId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
 
-    if (status === 'approved') {
-      const user = await User.findById(app.user_id);
-      const cardNumber = `MD${Date.now().toString(36).toUpperCase()}`;
-      const fanCard = await FanCard.create(user.id, cardNumber, app.tier, null);
-      await User.updateTier(user.id, app.tier);
-      await GiftKit.create(fanCard.id);
+    // Update the user's membership tier
+    const userResult = await pool.query('SELECT user_id FROM applications WHERE id = $1', [appId]);
+    if (userResult.rows.length > 0) {
+      const userId = userResult.rows[0].user_id;
+      await pool.query('UPDATE users SET membership_tier = $1 WHERE id = $2', [tier, userId]);
     }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
     res.json(updated);
   } catch (err) {
