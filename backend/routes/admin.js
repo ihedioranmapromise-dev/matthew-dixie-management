@@ -6,23 +6,22 @@ const { pool } = require('../config/db');
 const Application = require('../models/Application');
 const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
-const User = require("../models/User");
+const User = require('../models/User');
 const router = express.Router();
 
 // Admin login – password only
 router.post('/login', (req, res) => {
   const { password } = req.body;
   const adminPassword = process.env.ADMIN_PASSWORD || 'WORKandPRAY@1';
-  
   if (password === adminPassword) {
     const token = jwt.sign(
       { id: 999, role: 'admin' },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    res.json({ 
-      token, 
-      user: { id: 999, name: 'Admin', email: 'admin@matthewdixie.com', role: 'admin' } 
+    res.json({
+      token,
+      user: { id: 999, name: 'Admin', email: 'admin@matthewdixie.com', role: 'admin' }
     });
   } else {
     res.status(401).json({ error: 'Invalid admin password' });
@@ -53,31 +52,58 @@ router.get('/applications/:id', async (req, res) => {
   }
 });
 
+router.put('/applications/:id', async (req, res) => {
+  try {
+    const { status, adminNotes, invoiceDetails } = req.body;
+    const app = await Application.findById(req.params.id);
+    if (!app) return res.status(404).json({ error: 'Application not found' });
+
+    const updated = await Application.updateStatus(req.params.id, status, adminNotes, invoiceDetails);
+
+    if (status === 'approved') {
+      const user = await User.findById(app.user_id);
+      const cardNumber = `MD${Date.now().toString(36).toUpperCase()}`;
+      const fanCard = await FanCard.create(user.id, cardNumber, app.tier, null);
+      await User.updateTier(user.id, app.tier);
+      await GiftKit.create(fanCard.id);
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Update Application Tier (with user sync) ----
 router.put('/applications/:id/tier', async (req, res) => {
   try {
     const { tier } = req.body;
     const appId = req.params.id;
 
-    // Update application tier
     const result = await pool.query(
       'UPDATE applications SET tier = $1 WHERE id = $2 RETURNING *',
       [tier, appId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
 
-    // Update the user's membership tier
     const userResult = await pool.query('SELECT user_id FROM applications WHERE id = $1', [appId]);
     if (userResult.rows.length > 0) {
       const userId = userResult.rows[0].user_id;
       await pool.query('UPDATE users SET membership_tier = $1 WHERE id = $2', [tier, userId]);
     }
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-    res.json(updated);
+// ---- Delete Application ----
+router.delete('/applications/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM applications WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -116,7 +142,7 @@ router.put('/tiers/:id', async (req, res) => {
 // ---- Users ----
 router.get('/users', async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, name, email, role, membership_tier, created_at FROM users ORDER BY created_at DESC');
+    const result = await pool.query('SELECT id, name, email, role, status, membership_tier, created_at FROM users ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -133,6 +159,52 @@ router.put('/users/:id/tier', async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- User Approval ----
+router.put('/users/:id/approve', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.updateStatus(userId, 'active');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- User Details (full profile with application, fan card, gift kit) ----
+router.get('/users/:id/details', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const userResult = await pool.query(
+      'SELECT id, name, email, role, status, membership_tier, phone, created_at FROM users WHERE id = $1',
+      [userId]
+    );
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const user = userResult.rows[0];
+    const appResult = await pool.query(
+      'SELECT * FROM applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [userId]
+    );
+    const application = appResult.rows[0] || null;
+    const cardResult = await pool.query(
+      'SELECT * FROM fan_cards WHERE user_id = $1 ORDER BY issued_at DESC LIMIT 1',
+      [userId]
+    );
+    const fanCard = cardResult.rows[0] || null;
+    let giftKit = null;
+    if (fanCard) {
+      const giftResult = await pool.query(
+        'SELECT * FROM gift_kits WHERE fan_card_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [fanCard.id]
+      );
+      giftKit = giftResult.rows[0] || null;
+    }
+    res.json({ user, application, fanCard, giftKit });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -319,122 +391,3 @@ router.get('/support-info', async (req, res) => {
 });
 
 module.exports = router;
-
-// ---- User Approval ----
-router.put('/users/:id/approve', async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const user = await User.updateStatus(userId, 'active');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---- User Details (full profile with application, fan card, gift kit) ----
-router.get('/users/:id/details', async (req, res) => {
-  try {
-    const userId = req.params.id;
-    
-    // Get user
-    const userResult = await pool.query(
-      'SELECT id, name, email, role, status, membership_tier, phone, created_at FROM users WHERE id = $1',
-      [userId]
-    );
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    const user = userResult.rows[0];
-    
-    // Get application
-    const appResult = await pool.query(
-      'SELECT * FROM applications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
-      [userId]
-    );
-    const application = appResult.rows[0] || null;
-    
-    // Get fan card
-    const cardResult = await pool.query(
-      'SELECT * FROM fan_cards WHERE user_id = $1 ORDER BY issued_at DESC LIMIT 1',
-      [userId]
-    );
-    const fanCard = cardResult.rows[0] || null;
-    
-    // Get gift kit (if fan card exists)
-    let giftKit = null;
-    if (fanCard) {
-      const giftResult = await pool.query(
-        'SELECT * FROM gift_kits WHERE fan_card_id = $1 ORDER BY created_at DESC LIMIT 1',
-        [fanCard.id]
-      );
-      giftKit = giftResult.rows[0] || null;
-    }
-    
-    res.json({
-      user,
-      application,
-      fanCard,
-      giftKit
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---- Delete Application ----
-router.delete('/applications/:id', async (req, res) => {
-  try {
-    const result = await pool.query('DELETE FROM applications WHERE id = $1 RETURNING id', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---- Update Application Tier ----
-
-// ---- Investment Tier Prices ----
-// Get all pricing entries
-router.get('/investment-tier-prices', async (req, res) => {
-  try {
-    const result = await pool.query(
-      `SELECT itp.*, i.name as investment_name, t.name as tier_name
-       FROM investment_tier_prices itp
-       JOIN investments i ON itp.investment_plan_id = i.id
-       JOIN tiers t ON itp.tier_id = t.id
-       ORDER BY i.id, t.id`
-    );
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Update a specific price entry
-router.put('/investment-tier-prices/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { price_monthly, price_yearly } = req.body;
-    const result = await pool.query(
-      'UPDATE investment_tier_prices SET price_monthly = $1, price_yearly = $2 WHERE id = $3 RETURNING *',
-      [price_monthly, price_yearly, id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Price entry not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Delete a price entry
-router.delete('/investment-tier-prices/:id', async (req, res) => {
-  try {
-    const result = await pool.query('DELETE FROM investment_tier_prices WHERE id = $1 RETURNING id', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Price entry not found' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});module.exports = router;
