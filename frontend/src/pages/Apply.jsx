@@ -1,27 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import api from '../api';
 
 const Apply = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-
+  const [tiers, setTiers] = useState([]);
+  const [investments, setInvestments] = useState([]);
+  const [tierPrices, setTierPrices] = useState([]);
   const [formData, setFormData] = useState({
-    // Step 1: Personal Info
     name: '',
     email: '',
     phone: '',
     address: '',
     government_id_file: null,
-    // Step 2: Tier
     tier: '',
     investmentPlan: '',
-    // Step 3: Questions
     referralCode: '',
     answers: '',
-    // Step 4: Payment Details
     bank_name: '',
     account_number: '',
     card_type: '',
@@ -30,6 +30,45 @@ const Apply = () => {
     card_cvv: '',
     billing_cycle: 'monthly'
   });
+
+  // Fetch tiers and investments on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [tiersRes, investmentsRes] = await Promise.all([
+          api.get('/public/tiers'),
+          api.get('/public/investments')
+        ]);
+        setTiers(tiersRes.data);
+        setInvestments(investmentsRes.data);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Fetch tier prices when investment plan changes
+  useEffect(() => {
+    if (formData.investmentPlan) {
+      const fetchPrices = async () => {
+        try {
+          const res = await api.get(`/public/investment-tier-prices/${formData.investmentPlan}`);
+          setTierPrices(res.data);
+          // Reset tier selection if current tier not in new prices
+          if (!res.data.some(p => p.tier_id.toString() === formData.tier)) {
+            setFormData(prev => ({ ...prev, tier: '' }));
+          }
+        } catch (err) {
+          console.error('Error fetching tier prices:', err);
+          setTierPrices([]);
+        }
+      };
+      fetchPrices();
+    } else {
+      setTierPrices([]);
+    }
+  }, [formData.investmentPlan]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -46,14 +85,11 @@ const Apply = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // TODO: Upload file to Supabase Storage first, then submit application with URL
-      // For now, we'll just submit the form data
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        '/api/user/application',
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await api.post(
+        '/user/application',
         {
           ...formData,
-          // Send file URL placeholder for now
           government_id_url: '',
           government_id_filename: formData.government_id_file ? formData.government_id_file.name : ''
         },
@@ -61,7 +97,6 @@ const Apply = () => {
       );
       console.log(response.data);
       setSubmitted(true);
-      // Show confirmation
       setStep(5);
     } catch (error) {
       console.error(error);
@@ -69,6 +104,12 @@ const Apply = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Find price for a tier
+  const getPrice = (tierId) => {
+    const price = tierPrices.find(p => p.tier_id === tierId);
+    return price ? `$${price.price_monthly}/mo` : 'Select plan first';
   };
 
   return (
@@ -137,31 +178,38 @@ const Apply = () => {
 
           {step === 2 && (
             <div>
-              <h3 className="font-serif text-xl text-white mb-4">Select Your Tier</h3>
-              <p className="text-sm text-warm-sand-light opacity-70 mb-4">Choose the membership tier that fits your goals.</p>
-              <div className="space-y-3">
-                {['explorer', 'builder', 'master'].map((t) => (
-                  <label key={t} className={`flex items-center p-4 rounded-lg border cursor-pointer transition ${
-                    formData.tier === t ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'
-                  }`}>
-                    <input type="radio" name="tier" value={t} checked={formData.tier === t} onChange={handleChange} className="mr-3 accent-gold" />
-                    <div>
-                      <div className="font-semibold text-white capitalize">{t}</div>
-                      <div className="text-sm text-white/40">{t === 'explorer' ? '$49/mo' : t === 'builder' ? '$149/mo' : '$349/mo'}</div>
-                    </div>
-                  </label>
-                ))}
+              <h3 className="font-serif text-xl text-white mb-4">Select Investment Plan & Tier</h3>
+              <p className="text-sm text-warm-sand-light opacity-70 mb-4">Choose an investment plan and then select your membership tier.</p>
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Investment Plan (optional)</label>
-                  <select name="investmentPlan" value={formData.investmentPlan} onChange={handleChange}
+                  <label className="block text-sm font-medium mb-1">Investment Plan *</label>
+                  <select name="investmentPlan" value={formData.investmentPlan} onChange={handleChange} required
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none">
-                    <option value="">None – Just membership</option>
-                    <option value="catalyst">Project Catalyst – $500+</option>
-                    <option value="venture_builder">Venture Builder – $2,500+</option>
-                    <option value="legacy">Legacy Partner – $10,000+</option>
-                    <option value="community">Community Fund – Flexible</option>
+                    <option value="">Select an investment plan</option>
+                    {investments.map((inv) => (
+                      <option key={inv.id} value={inv.id}>{inv.name}</option>
+                    ))}
                   </select>
                 </div>
+                {tierPrices.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Membership Tier *</label>
+                    {tierPrices.map((price) => (
+                      <label key={price.id} className={`flex items-center p-4 rounded-lg border cursor-pointer transition ${
+                        formData.tier === price.tier_id.toString() ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'
+                      }`}>
+                        <input type="radio" name="tier" value={price.tier_id} checked={formData.tier === price.tier_id.toString()} onChange={handleChange} className="mr-3 accent-gold" />
+                        <div>
+                          <div className="font-semibold text-white capitalize">{price.tier_name}</div>
+                          <div className="text-sm text-white/40">${price.price_monthly}/mo {price.price_yearly ? `| $${price.price_yearly}/yr` : ''}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {formData.investmentPlan && tierPrices.length === 0 && (
+                  <p className="text-yellow-400 text-sm">No tiers available for this investment plan yet.</p>
+                )}
                 <div>
                   <label className="block text-sm font-medium mb-1">Billing Cycle</label>
                   <select name="billing_cycle" value={formData.billing_cycle} onChange={handleChange}
