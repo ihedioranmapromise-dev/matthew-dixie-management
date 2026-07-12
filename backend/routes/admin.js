@@ -79,11 +79,6 @@ router.put('/applications/:id/tier', async (req, res) => {
   }
 });
 
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ---- Tiers ----
 router.get('/tiers', async (req, res) => {
