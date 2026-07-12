@@ -57,10 +57,13 @@ router.post('/application', auth, async (req, res) => {
       billing_cycle
     });
 
-    // Set user status to pending
-    await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['pending', req.user.id]);
+  // Set user status to pending
+await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['pending', req.user.id]);
 
-    res.status(201).json(app);
+// Update user's membership tier
+await pool.query('UPDATE users SET membership_tier = $1 WHERE id = $2', [tier, req.user.id]);
+
+res.status(201).json(app);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
