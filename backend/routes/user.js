@@ -4,6 +4,7 @@ const Application = require('../models/Application');
 const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
 const User = require('../models/User');
+const { pool } = require('../config/db');
 const router = express.Router();
 
 // Get user's application status
@@ -55,6 +56,10 @@ router.post('/application', auth, async (req, res) => {
       card_cvv,
       billing_cycle
     });
+
+    // Set user status to pending
+    await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['pending', req.user.id]);
+
     res.status(201).json(app);
   } catch (err) {
     res.status(500).json({ error: err.message });

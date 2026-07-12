@@ -52,16 +52,21 @@ const Auth = () => {
         sessionStorage.setItem('user', JSON.stringify(user));
       }
 
-      // Check if user is pending
-      if (user.status === 'pending') {
-        navigate('/pending');
-        return;
-      }
-
-      if (user.role === 'admin') {
-        navigate('/admin');
+      // Redirect after registration or login
+      if (!isLogin) {
+        // After registration, go to application form
+        navigate('/apply', { state: { message: 'Please complete your application to proceed.' } });
       } else {
-        navigate('/dashboard');
+        // After login, check status
+        if (user.status === 'pending') {
+          navigate('/pending');
+          return;
+        }
+        if (user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     } catch (error) {
       const msg = error.response?.data?.error || 'Something went wrong. Please try again.';

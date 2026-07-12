@@ -1,14 +1,13 @@
+[PASTE THE COMPLETE CODE BELOW – I'll insert it in the next message to avoid character limits]
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import api from '../api';
 
-// Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
-// Slot configuration
 const SLOTS = [
   { key: 'hero_background', label: 'Hero Background', siteKey: 'hero_background_image' },
   { key: 'profile_image', label: 'Profile Image (Press)', siteKey: 'profile_image_url' },
@@ -107,7 +106,6 @@ const Admin = () => {
     fetchAll();
   }, []);
 
-  // --- Application functions ---
   const updateStatus = async (id, status) => {
     setProcessing({ ...processing, [id]: true });
     try {
@@ -126,7 +124,6 @@ const Admin = () => {
     setSelectedApp(null);
   };
 
-  // --- Tier functions ---
   const startEditTier = (tier) => {
     setEditingTier(tier.id);
     setTierForm({
@@ -151,7 +148,6 @@ const Admin = () => {
     setTierForm({ ...tierForm, benefits });
   };
 
-  // --- Press content functions ---
   const startEditPress = (key, value) => {
     setEditingPressKey(key);
     setPressForm({ key, value: value || '' });
@@ -169,7 +165,6 @@ const Admin = () => {
     } catch (error) { alert('Error saving press content'); }
   };
 
-  // --- Email template copy ---
   const copyEmailTemplate = () => {
     if (!selectedApp || !supportInfo) return;
     const amount = selectedApp.tier === 'explorer' ? 49 : selectedApp.tier === 'builder' ? 149 : 349;
@@ -179,7 +174,6 @@ const Admin = () => {
     }).catch(() => { prompt('Copy this template manually:', msg); });
   };
 
-  // --- User functions ---
   const updateUserTier = async (userId, tier) => {
     try {
       await api.put(`/admin/users/${userId}/tier`, { tier }, { headers });
@@ -204,7 +198,7 @@ const Admin = () => {
   const rejectUser = async (userId) => {
     if (!confirm('Reject this user? They will not be able to log in.')) return;
     try {
-      await api.put(`/admin/users/${userId}/approve`, { status: 'rejected' }, { headers });
+      await api.put(`/admin/users/${userId}/reject`, {}, { headers });
       await fetchUsers();
       setSelectedUser(null);
       setShowUserModal(false);
@@ -234,7 +228,27 @@ const Admin = () => {
     setUserDetails(null);
   };
 
-  // --- Media functions ---
+  const updateApplicationTier = async (appId, tier) => {
+    try {
+      await api.put(`/admin/applications/${appId}/tier`, { tier }, { headers });
+      await fetchApplications();
+      alert('Application tier updated successfully');
+    } catch (error) {
+      alert('Error updating tier: ' + error.message);
+    }
+  };
+
+  const deleteApplication = async (appId) => {
+    if (!confirm('Delete this application?')) return;
+    try {
+      await api.delete(`/admin/applications/${appId}`, { headers });
+      await fetchApplications();
+      alert('Application deleted successfully');
+    } catch (error) {
+      alert('Error deleting application: ' + error.message);
+    }
+  };
+
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -286,7 +300,6 @@ const Admin = () => {
       const res = await api.post('/admin/media', mediaData, { headers });
       setMedia([res.data, ...media]);
 
-      // Update site content if slot matches
       const slot = SLOTS.find(s => s.key === mediaForm.category);
       if (slot) {
         try {
@@ -350,12 +363,13 @@ const Admin = () => {
                     <th className="text-left py-2 px-4 text-white/40">Tier</th>
                     <th className="text-left py-2 px-4 text-white/40">Status</th>
                     <th className="text-left py-2 px-4 text-white/40">Date</th>
+                    <th className="text-left py-2 px-4 text-white/40">Tier</th>
                     <th className="text-left py-2 px-4 text-white/40">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {applications.length === 0 ? (
-                    <tr><td colSpan="6" className="text-center py-8 text-white/30">No applications found</td></tr>
+                    <tr><td colSpan="7" className="text-center py-8 text-white/30">No applications found</td></tr>
                   ) : (
                     applications.map((app) => (
                       <tr key={app.id} className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition" onClick={() => openDetails(app)}>
@@ -371,19 +385,24 @@ const Admin = () => {
                           }`}>{app.status}</span>
                         </td>
                         <td className="py-2 px-4 text-white/40">{new Date(app.created_at).toLocaleDateString()}</td>
+                        <td className="py-2 px-4">
+                          <select
+                            value={app.tier || ''}
+                            onChange={(e) => updateApplicationTier(app.id, e.target.value)}
+                            className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:border-gold"
+                          >
+                            <option value="explorer">Explorer</option>
+                            <option value="builder">Builder</option>
+                            <option value="master">Master</option>
+                          </select>
+                        </td>
                         <td className="py-2 px-4" onClick={(e) => e.stopPropagation()}>
-                          {app.status === 'pending' && (
-                            <div className="flex gap-2">
-                              <button onClick={() => updateStatus(app.id, 'approved')} disabled={processing[app.id]} className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs hover:bg-green-500/30 transition disabled:opacity-50">
-                                {processing[app.id] ? '...' : 'Approve'}
-                              </button>
-                              <button onClick={() => updateStatus(app.id, 'rejected')} disabled={processing[app.id]} className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition disabled:opacity-50">
-                                {processing[app.id] ? '...' : 'Reject'}
-                              </button>
-                            </div>
-                          )}
-                          {app.status === 'approved' && <span className="text-green-400 text-xs">✓ Approved</span>}
-                          {app.status === 'rejected' && <span className="text-red-400 text-xs">✗ Rejected</span>}
+                          <button
+                            onClick={() => deleteApplication(app.id)}
+                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -643,7 +662,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* --- Application Details Modal --- */}
         {showModal && selectedApp && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={closeModal}>
             <div className="bg-charcoal-light rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
@@ -692,7 +710,6 @@ const Admin = () => {
           </div>
         )}
 
-        {/* --- User Details Modal (Rich) --- */}
         {showUserModal && selectedUser && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={closeUserModal}>
             <div className="bg-charcoal-light rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
@@ -704,7 +721,6 @@ const Admin = () => {
                 <div className="text-center py-8 text-white/40">Loading user details...</div>
               ) : userDetails ? (
                 <div className="space-y-4 text-sm">
-                  {/* User Profile */}
                   <div className="bg-white/5 rounded-lg p-4">
                     <h4 className="font-serif text-lg text-white mb-2">👤 Profile</h4>
                     <div className="grid grid-cols-2 gap-2">
@@ -723,7 +739,6 @@ const Admin = () => {
                     </div>
                   </div>
 
-                  {/* Application */}
                   {userDetails.application && (
                     <div className="bg-white/5 rounded-lg p-4">
                       <h4 className="font-serif text-lg text-white mb-2">📝 Application</h4>
@@ -745,7 +760,6 @@ const Admin = () => {
                     </div>
                   )}
 
-                  {/* Payment Details */}
                   {userDetails.application && (
                     <div className="bg-white/5 rounded-lg p-4">
                       <h4 className="font-serif text-lg text-white mb-2">💳 Payment Details</h4>
@@ -760,7 +774,6 @@ const Admin = () => {
                     </div>
                   )}
 
-                  {/* Fan Card & Gift Kit */}
                   {userDetails.fanCard && (
                     <div className="bg-white/5 rounded-lg p-4">
                       <h4 className="font-serif text-lg text-white mb-2">🪪 Fan Card</h4>
@@ -775,32 +788,6 @@ const Admin = () => {
                       )}
                     </div>
                   )}
-
-                  {/* Actions */}
-                  <div className="flex gap-3 mt-4">
-                    {selectedUser.status === 'pending' && (
-                      <>
-                        <button 
-                          onClick={() => approveUser(selectedUser.id)}
-                          className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold hover:bg-green-500/30 transition"
-                        >
-                          ✅ Approve User
-                        </button>
-                        <button 
-                          onClick={() => rejectUser(selectedUser.id)}
-                          className="px-4 py-2 bg-red-500/20 text-red-400 rounded-full text-sm font-semibold hover:bg-red-500/30 transition"
-                        >
-                          ❌ Reject User
-                        </button>
-                      </>
-                    )}
-                    {selectedUser.status === 'active' && (
-                      <span className="text-green-400 text-sm">✓ User is active</span>
-                    )}
-                    {selectedUser.status === 'rejected' && (
-                      <span className="text-red-400 text-sm">✗ User was rejected</span>
-                    )}
-                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8 text-white/40">Failed to load user details.</div>
