@@ -71,7 +71,6 @@ router.put('/applications/:id/tier', async (req, res) => {
       const userId = userResult.rows[0].user_id;
       await pool.query('UPDATE users SET membership_tier = $1 WHERE id = $2', [tier, userId]);
     }
-
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -395,45 +394,6 @@ router.delete('/applications/:id', async (req, res) => {
 });
 
 // ---- Update Application Tier ----
-router.put('/applications/:id/tier', async (req, res) => {
-  try {
-    const { tier } = req.body;
-    const result = await pool.query(
-      'UPDATE applications SET tier = $1 WHERE id = $2 RETURNING *',
-      [tier, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---- Delete Application ----
-router.delete('/applications/:id', async (req, res) => {
-  try {
-    const result = await pool.query('DELETE FROM applications WHERE id = $1 RETURNING id', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---- Update Application Tier ----
-router.put('/applications/:id/tier', async (req, res) => {
-  try {
-    const { tier } = req.body;
-    const result = await pool.query(
-      'UPDATE applications SET tier = $1 WHERE id = $2 RETURNING *',
-      [tier, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ---- Investment Tier Prices ----
 // Get all pricing entries
@@ -477,4 +437,4 @@ router.delete('/investment-tier-prices/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+});module.exports = router;
