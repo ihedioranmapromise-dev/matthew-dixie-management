@@ -53,7 +53,6 @@ router.get('/applications/:id', async (req, res) => {
   }
 });
 
-// ---- Update Application Tier ----
 router.put('/applications/:id/tier', async (req, res) => {
   try {
     const { tier } = req.body;
@@ -79,6 +78,11 @@ router.put('/applications/:id/tier', async (req, res) => {
   }
 });
 
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ---- Tiers ----
 router.get('/tiers', async (req, res) => {
@@ -390,4 +394,87 @@ router.delete('/applications/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+// ---- Update Application Tier ----
+router.put('/applications/:id/tier', async (req, res) => {
+  try {
+    const { tier } = req.body;
+    const result = await pool.query(
+      'UPDATE applications SET tier = $1 WHERE id = $2 RETURNING *',
+      [tier, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Delete Application ----
+router.delete('/applications/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM applications WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Update Application Tier ----
+router.put('/applications/:id/tier', async (req, res) => {
+  try {
+    const { tier } = req.body;
+    const result = await pool.query(
+      'UPDATE applications SET tier = $1 WHERE id = $2 RETURNING *',
+      [tier, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Application not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Investment Tier Prices ----
+// Get all pricing entries
+router.get('/investment-tier-prices', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT itp.*, i.name as investment_name, t.name as tier_name
+       FROM investment_tier_prices itp
+       JOIN investments i ON itp.investment_plan_id = i.id
+       JOIN tiers t ON itp.tier_id = t.id
+       ORDER BY i.id, t.id`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a specific price entry
+router.put('/investment-tier-prices/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { price_monthly, price_yearly } = req.body;
+    const result = await pool.query(
+      'UPDATE investment_tier_prices SET price_monthly = $1, price_yearly = $2 WHERE id = $3 RETURNING *',
+      [price_monthly, price_yearly, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Price entry not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a price entry
+router.delete('/investment-tier-prices/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM investment_tier_prices WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Price entry not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
