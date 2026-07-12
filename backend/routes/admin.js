@@ -395,3 +395,4 @@ router.delete('/applications/:id', async (req, res) => {
   }
 });
 
+module.exports = router;
