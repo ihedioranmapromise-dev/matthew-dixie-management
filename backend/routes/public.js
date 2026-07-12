@@ -55,3 +55,21 @@ router.get('/site-content', async (req, res) => {
 });
 
 module.exports = router;
+
+// Get tier prices for a specific investment plan
+router.get('/investment-tier-prices/:investmentId', async (req, res) => {
+  try {
+    const { investmentId } = req.params;
+    const result = await pool.query(
+      `SELECT itp.*, t.name as tier_name 
+       FROM investment_tier_prices itp
+       JOIN tiers t ON itp.tier_id = t.id
+       WHERE itp.investment_plan_id = $1
+       ORDER BY t.id`,
+      [investmentId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
