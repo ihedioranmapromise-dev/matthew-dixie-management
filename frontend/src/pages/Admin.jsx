@@ -1,13 +1,14 @@
-[PASTE THE COMPLETE CODE BELOW – I'll insert it in the next message to avoid character limits]
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import api from '../api';
 
+// Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
+// Slot configuration
 const SLOTS = [
   { key: 'hero_background', label: 'Hero Background', siteKey: 'hero_background_image' },
   { key: 'profile_image', label: 'Profile Image (Press)', siteKey: 'profile_image_url' },
@@ -38,6 +39,9 @@ const Admin = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [userDetails, setUserDetails] = useState(null);
   const [loadingUserDetails, setLoadingUserDetails] = useState(false);
+  const [pricingData, setPricingData] = useState([]);
+  const [editingPricing, setEditingPricing] = useState(null);
+  const [pricingForm, setPricingForm] = useState({ price_monthly: 0, price_yearly: 0 });
   const [mediaForm, setMediaForm] = useState({
     title: '',
     type: 'image',
@@ -98,14 +102,24 @@ const Admin = () => {
     } catch (error) { console.error(error); }
   };
 
+  const fetchPricing = async () => {
+    try {
+      const res = await api.get('/admin/investment-tier-prices', { headers });
+      setPricingData(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
-      await Promise.all([fetchApplications(), fetchTiers(), fetchUsers(), fetchSupportInfo(), fetchPressContent(), fetchMedia()]);
+      await Promise.all([fetchApplications(), fetchTiers(), fetchUsers(), fetchSupportInfo(), fetchPressContent(), fetchMedia(), fetchPricing()]);
       setLoading(false);
     };
     fetchAll();
   }, []);
 
+  // --- Application functions ---
   const updateStatus = async (id, status) => {
     setProcessing({ ...processing, [id]: true });
     try {
@@ -124,6 +138,7 @@ const Admin = () => {
     setSelectedApp(null);
   };
 
+  // --- Tier functions ---
   const startEditTier = (tier) => {
     setEditingTier(tier.id);
     setTierForm({
@@ -148,6 +163,7 @@ const Admin = () => {
     setTierForm({ ...tierForm, benefits });
   };
 
+  // --- Press content functions ---
   const startEditPress = (key, value) => {
     setEditingPressKey(key);
     setPressForm({ key, value: value || '' });
@@ -165,6 +181,7 @@ const Admin = () => {
     } catch (error) { alert('Error saving press content'); }
   };
 
+  // --- Email template copy ---
   const copyEmailTemplate = () => {
     if (!selectedApp || !supportInfo) return;
     const amount = selectedApp.tier === 'explorer' ? 49 : selectedApp.tier === 'builder' ? 149 : 349;
@@ -174,6 +191,7 @@ const Admin = () => {
     }).catch(() => { prompt('Copy this template manually:', msg); });
   };
 
+  // --- User functions ---
   const updateUserTier = async (userId, tier) => {
     try {
       await api.put(`/admin/users/${userId}/tier`, { tier }, { headers });
@@ -249,6 +267,20 @@ const Admin = () => {
     }
   };
 
+  // --- Pricing functions ---
+  const updatePricing = async (id) => {
+    try {
+      await api.put(`/admin/investment-tier-prices/${id}`, pricingForm, { headers });
+      await fetchPricing();
+      setEditingPricing(null);
+      setPricingForm({ price_monthly: 0, price_yearly: 0 });
+      alert('Pricing updated successfully');
+    } catch (error) {
+      alert('Error updating pricing');
+    }
+  };
+
+  // --- Media functions ---
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -338,7 +370,7 @@ const Admin = () => {
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="font-serif text-3xl text-white mb-2">Admin Panel</h1>
-        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, users, media, and content</p>
+        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, users, media, content, and pricing</p>
 
         <div className="flex flex-wrap gap-4 mb-6 border-b border-white/10">
           <button onClick={() => setActiveTab('applications')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'applications' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Applications</button>
@@ -346,6 +378,7 @@ const Admin = () => {
           <button onClick={() => setActiveTab('users')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'users' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Users</button>
           <button onClick={() => setActiveTab('press')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'press' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Press</button>
           <button onClick={() => setActiveTab('media')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'media' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Media</button>
+          <button onClick={() => setActiveTab('pricing')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'pricing' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Pricing</button>
         </div>
 
         {activeTab === 'applications' && (
@@ -658,6 +691,80 @@ const Admin = () => {
                 );
               })}
               {media.length === 0 && <p className="text-white/30 text-sm col-span-4 text-center py-8">No media uploaded yet.</p>}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'pricing' && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-xl text-white">Investment Tier Pricing</h2>
+              <span className="text-sm text-white/40">{pricingData.length} entries</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-2 px-4 text-white/40">Investment Plan</th>
+                    <th className="text-left py-2 px-4 text-white/40">Tier</th>
+                    <th className="text-left py-2 px-4 text-white/40">Monthly Price ($)</th>
+                    <th className="text-left py-2 px-4 text-white/40">Yearly Price ($)</th>
+                    <th className="text-left py-2 px-4 text-white/40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pricingData.length === 0 ? (
+                    <tr><td colSpan="5" className="text-center py-8 text-white/30">No pricing entries found</td></tr>
+                  ) : (
+                    pricingData.map((p) => (
+                      <tr key={p.id} className="border-b border-white/5">
+                        <td className="py-2 px-4 text-white/60">{p.investment_name}</td>
+                        <td className="py-2 px-4 text-white/60 capitalize">{p.tier_name}</td>
+                        {editingPricing === p.id ? (
+                          <>
+                            <td className="py-2 px-4">
+                              <input
+                                type="number"
+                                value={pricingForm.price_monthly}
+                                onChange={(e) => setPricingForm({ ...pricingForm, price_monthly: parseInt(e.target.value) || 0 })}
+                                className="w-24 p-1 rounded bg-white/5 border border-white/10 text-white text-sm"
+                              />
+                            </td>
+                            <td className="py-2 px-4">
+                              <input
+                                type="number"
+                                value={pricingForm.price_yearly}
+                                onChange={(e) => setPricingForm({ ...pricingForm, price_yearly: parseInt(e.target.value) || 0 })}
+                                className="w-24 p-1 rounded bg-white/5 border border-white/10 text-white text-sm"
+                              />
+                            </td>
+                            <td className="py-2 px-4">
+                              <button onClick={() => updatePricing(p.id)} className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs hover:bg-green-500/30 transition mr-1">Save</button>
+                              <button onClick={() => { setEditingPricing(null); }} className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs hover:bg-gray-500/30 transition">Cancel</button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="py-2 px-4 text-white">${p.price_monthly}</td>
+                            <td className="py-2 px-4 text-white">${p.price_yearly || '-'}</td>
+                            <td className="py-2 px-4">
+                              <button
+                                onClick={() => {
+                                  setEditingPricing(p.id);
+                                  setPricingForm({ price_monthly: p.price_monthly, price_yearly: p.price_yearly || 0 });
+                                }}
+                                className="px-2 py-1 bg-gold/20 text-gold rounded-full text-xs hover:bg-gold/30 transition"
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
