@@ -13,6 +13,7 @@ import Investments from './pages/Investments';
 import Blog from './pages/Blog';
 import Press from './pages/Press';
 import Pending from './pages/Pending';
+import Profile from './pages/Profile';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 
@@ -34,6 +35,7 @@ function App() {
             <Route path="/blog" element={<Blog />} />
             <Route path="/press" element={<Press />} />
             <Route path="/pending" element={<Pending />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
           </Routes>
