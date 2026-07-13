@@ -1,7 +1,9 @@
+cat > src/pages/Admin.jsx << 'EOF'
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import api from '../api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 // Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -364,7 +366,7 @@ const Admin = () => {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
@@ -908,3 +910,4 @@ const Admin = () => {
 };
 
 export default Admin;
+EOF

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Apply = () => {
   const navigate = useNavigate();
@@ -55,7 +56,6 @@ const Apply = () => {
         try {
           const res = await api.get(`/public/investment-tier-prices/${formData.investmentPlan}`);
           setTierPrices(res.data);
-          // Reset tier selection if current tier not in new prices
           if (!res.data.some(p => p.tier_id.toString() === formData.tier)) {
             setFormData(prev => ({ ...prev, tier: '' }));
           }
@@ -106,11 +106,15 @@ const Apply = () => {
     }
   };
 
-  // Find price for a tier
   const getPrice = (tierId) => {
     const price = tierPrices.find(p => p.tier_id === tierId);
     return price ? `$${price.price_monthly}/mo` : 'Select plan first';
   };
+
+  // If initial data is still loading (tiers or investments not fetched)
+  if (tiers.length === 0 && investments.length === 0) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-charcoal text-warm-sand py-12 px-4">
@@ -122,7 +126,6 @@ const Apply = () => {
           Complete your application. Each submission is reviewed personally.
         </p>
 
-        {/* Step indicator */}
         <div className="flex justify-between items-center mb-8">
           {[1, 2, 3, 4].map((s) => (
             <div key={s} className="flex items-center">

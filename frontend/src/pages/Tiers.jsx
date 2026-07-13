@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Tiers = () => {
   const [tiers, setTiers] = useState([]);
@@ -20,9 +21,7 @@ const Tiers = () => {
     fetchTiers();
   }, []);
 
-  if (loading) {
-    return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
-  }
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="min-h-screen bg-charcoal-light py-20 px-6">

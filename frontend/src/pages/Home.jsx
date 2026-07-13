@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Home = () => {
   const [content, setContent] = useState({
@@ -29,10 +30,11 @@ const Home = () => {
     fetchContent();
   }, []);
 
-  if (loading) return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="min-h-screen bg-charcoal text-warm-sand pt-20">
+      {/* Hero Section */}
       <div className="relative min-h-[90vh] flex items-center px-6 md:px-20">
         {content.hero_background_image && (
           <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: `url(${content.hero_background_image})` }} />

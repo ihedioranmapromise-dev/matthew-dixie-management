@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -25,7 +26,6 @@ const Dashboard = () => {
         const profileRes = await axios.get('/api/user/profile', { headers });
         setUser(profileRes.data);
 
-        // If user is pending, show pending message instead of fetching other data
         if (profileRes.data.status === 'pending') {
           setLoading(false);
           return;
@@ -52,11 +52,8 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [token, navigate]);
 
-  if (loading) {
-    return <div className="min-h-screen bg-charcoal text-white flex items-center justify-center">Loading...</div>;
-  }
+  if (loading) return <LoadingSpinner />;
 
-  // If user is pending, show pending message
   if (user?.status === 'pending') {
     return (
       <div className="min-h-screen bg-charcoal text-white flex items-center justify-center px-4">
@@ -74,7 +71,6 @@ const Dashboard = () => {
     );
   }
 
-  // Regular dashboard for approved users
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
@@ -130,7 +126,7 @@ const Dashboard = () => {
             )}
           </div>
 
-          {/* Gift Kit Tracker (only if approved) */}
+          {/* Gift Kit Tracker */}
           {fanCard && fanCard.status === 'active' && (
             <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
               <h2 className="font-serif text-xl text-white mb-4">🎁 Gift Kit</h2>
