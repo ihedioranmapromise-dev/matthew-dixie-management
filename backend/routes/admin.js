@@ -7,6 +7,8 @@ const Application = require('../models/Application');
 const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
 const User = require('../models/User');
+const sendEmail = require('../utils/email');
+const createNotification = require('../utils/notifications');
 const router = express.Router();
 
 // Admin login – password only
@@ -59,13 +61,47 @@ router.put('/applications/:id', async (req, res) => {
     if (!app) return res.status(404).json({ error: 'Application not found' });
 
     const updated = await Application.updateStatus(req.params.id, status, adminNotes, invoiceDetails);
+    const user = await User.findById(app.user_id);
 
     if (status === 'approved') {
-      const user = await User.findById(app.user_id);
       const cardNumber = `MD${Date.now().toString(36).toUpperCase()}`;
       const fanCard = await FanCard.create(user.id, cardNumber, app.tier, null);
       await User.updateTier(user.id, app.tier);
       await GiftKit.create(fanCard.id);
+
+      // In-app notification
+      await createNotification(
+        app.user_id,
+        'application_approved',
+        `Your application has been approved! Welcome to the Inner Circle.`
+      );
+
+      // Email notification
+      await sendEmail(
+        user.email,
+        'Application Approved – Matthew Dixie',
+        `<h1>Congratulations!</h1>
+         <p>Your application has been approved, ${user.name}.</p>
+         <p>You now have full access to the Inner Circle dashboard.</p>
+         <p>— The Matthew Dixie Team</p>`
+      );
+    }
+
+    if (status === 'rejected') {
+      await createNotification(
+        app.user_id,
+        'application_rejected',
+        `Your application has been rejected. Please contact support for more information.`
+      );
+
+      await sendEmail(
+        user.email,
+        'Application Update – Matthew Dixie',
+        `<h1>Application Status</h1>
+         <p>Your application has been rejected, ${user.name}.</p>
+         <p>If you have any questions, please contact support.</p>
+         <p>— The Matthew Dixie Team</p>`
+      );
     }
 
     res.json(updated);
@@ -121,14 +157,14 @@ router.get('/tiers', async (req, res) => {
 
 router.put('/tiers/:id', async (req, res) => {
   try {
-    const { name, price_monthly, price_yearly, benefits, is_active } = req.body;
+    const { name, price_monthly, benefits, is_active } = req.body;
     const id = req.params.id;
     const result = await pool.query(
       `UPDATE tiers 
-       SET name = $1, price_monthly = $2, price_yearly = $3, benefits = $4, is_active = $5, updated_at = NOW()
-       WHERE id = $6
+       SET name = $1, price_monthly = $2, benefits = $3, is_active = $4, updated_at = NOW()
+       WHERE id = $5
        RETURNING *`,
-      [name, price_monthly, price_yearly, benefits, is_active, id]
+      [name, price_monthly, benefits, is_active, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Tier not found' });
@@ -171,6 +207,36 @@ router.put('/users/:id/approve', async (req, res) => {
     const user = await User.updateStatus(userId, 'active');
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Delete User (cascade) ----
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // Delete Gift Kit (if any)
+    await pool.query(`
+      DELETE FROM gift_kits
+      WHERE fan_card_id IN (SELECT id FROM fan_cards WHERE user_id = $1)
+    `, [userId]);
+
+    // Delete Fan Card
+    await pool.query('DELETE FROM fan_cards WHERE user_id = $1', [userId]);
+
+    // Delete Application
+    await pool.query('DELETE FROM applications WHERE user_id = $1', [userId]);
+
+    // Delete User
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -282,11 +348,11 @@ router.get('/blog-posts/:id', async (req, res) => {
 
 router.post('/blog-posts', async (req, res) => {
   try {
-    const { title, slug, excerpt, content, image_url, category, is_published } = req.body;
+    const { title, slug, excerpt, content, image_url, video_url, category, is_published } = req.body;
     const result = await pool.query(
-      `INSERT INTO blog_posts (title, slug, excerpt, content, image_url, category, is_published)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [title, slug, excerpt, content, image_url, category, is_published || false]
+      `INSERT INTO blog_posts (title, slug, excerpt, content, image_url, video_url, category, is_published)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [title, slug, excerpt, content, image_url, video_url, category, is_published || false]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -296,12 +362,12 @@ router.post('/blog-posts', async (req, res) => {
 
 router.put('/blog-posts/:id', async (req, res) => {
   try {
-    const { title, slug, excerpt, content, image_url, category, is_published } = req.body;
+    const { title, slug, excerpt, content, image_url, video_url, category, is_published } = req.body;
     const result = await pool.query(
       `UPDATE blog_posts
-       SET title = $1, slug = $2, excerpt = $3, content = $4, image_url = $5, category = $6, is_published = $7, updated_at = NOW()
-       WHERE id = $8 RETURNING *`,
-      [title, slug, excerpt, content, image_url, category, is_published, req.params.id]
+       SET title = $1, slug = $2, excerpt = $3, content = $4, image_url = $5, video_url = $6, category = $7, is_published = $8, updated_at = NOW()
+       WHERE id = $9 RETURNING *`,
+      [title, slug, excerpt, content, image_url, video_url, category, is_published, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
     res.json(result.rows[0]);
@@ -390,40 +456,7 @@ router.get('/support-info', async (req, res) => {
   });
 });
 
-// ---- Delete User (cascade) ----
-router.delete('/users/:id', async (req, res) => {
-  try {
-    const userId = req.params.id;
-
-    // Delete Gift Kit (if any)
-    await pool.query(`
-      DELETE FROM gift_kits
-      WHERE fan_card_id IN (SELECT id FROM fan_cards WHERE user_id = $1)
-    `, [userId]);
-
-    // Delete Fan Card
-    await pool.query('DELETE FROM fan_cards WHERE user_id = $1', [userId]);
-
-    // Delete Application
-    await pool.query('DELETE FROM applications WHERE user_id = $1', [userId]);
-
-    // Delete User
-    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-module.exports = router;
-
 // ---- Investment Tier Prices ----
-// Get all pricing entries
 router.get('/investment-tier-prices', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -439,14 +472,13 @@ router.get('/investment-tier-prices', async (req, res) => {
   }
 });
 
-// Update a specific pricing entry
 router.put('/investment-tier-prices/:id', async (req, res) => {
   try {
-    const { price_monthly, price_yearly } = req.body;
+    const { price_monthly } = req.body;
     const id = req.params.id;
     const result = await pool.query(
-      'UPDATE investment_tier_prices SET price_monthly = $1, price_yearly = $2 WHERE id = $3 RETURNING *',
-      [price_monthly, price_yearly, id]
+      'UPDATE investment_tier_prices SET price_monthly = $1 WHERE id = $2 RETURNING *',
+      [price_monthly, id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pricing entry not found' });
     res.json(result.rows[0]);
@@ -454,3 +486,5 @@ router.put('/investment-tier-prices/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+module.exports = router;
