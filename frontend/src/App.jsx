@@ -27,7 +27,6 @@ function App() {
             <Route path="/tiers" element={<Tiers />} />
             <Route path="/apply" element={<Apply />} />
             <Route path="/login" element={<Auth />} />
-            <Route path="/register" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/dashboard" element={<Dashboard />} />

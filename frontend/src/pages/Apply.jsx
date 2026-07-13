@@ -13,12 +13,16 @@ const Apply = () => {
   const [tiers, setTiers] = useState([]);
   const [investments, setInvestments] = useState([]);
   const [tierPrices, setTierPrices] = useState([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     address: '',
     government_id_file: null,
+    password: '',
+    confirmPassword: '',
     tier: '',
     investmentPlan: '',
     referralCode: '',
@@ -31,6 +35,7 @@ const Apply = () => {
     card_cvv: '',
   });
 
+  // Fetch tiers and investments on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -47,6 +52,7 @@ const Apply = () => {
     fetchData();
   }, []);
 
+  // Fetch tier prices when investment plan changes
   useEffect(() => {
     if (formData.investmentPlan) {
       const fetchPrices = async () => {
@@ -82,7 +88,33 @@ const Apply = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      // Check if user is already logged in
+      let token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      let userId = null;
+
+      // If not logged in, register first
+      if (!token) {
+        // Validate passwords match
+        if (formData.password !== formData.confirmPassword) {
+          alert('Passwords do not match');
+          setLoading(false);
+          return;
+        }
+        // Register user
+        const registerResponse = await api.post('/auth/register', {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password
+        });
+        token = registerResponse.data.token;
+        const user = registerResponse.data.user;
+        userId = user.id;
+        // Store token
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      // Submit application
       const response = await api.post(
         '/user/application',
         {
@@ -154,6 +186,51 @@ const Apply = () => {
                   <label className="block text-sm font-medium mb-1">Address *</label>
                   <input type="text" name="address" value={formData.address} onChange={handleChange} required
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
+                </div>
+                {/* Password fields */}
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password *</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      className="w-full p-3 pr-12 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none"
+                      placeholder="Create a password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition"
+                      aria-label="Toggle password visibility"
+                    >
+                      {showPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Confirm Password *</label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                      className="w-full p-3 pr-12 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none"
+                      placeholder="Re-enter your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition"
+                      aria-label="Toggle confirm password visibility"
+                    >
+                      {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Government ID (Passport, Driver's License, National ID) *</label>
@@ -246,7 +323,7 @@ const Apply = () => {
           {step === 4 && (
             <div>
               <h3 className="font-serif text-xl text-white mb-4">Payment Details</h3>
-              <p className="text-sm text-warm-sand-light opacity-70 mb-4">We'll use these details to verify your identity. No charges will be made at this time.</p>
+              <p className="text-sm text-warm-sand-light opacity-70 mb-4">Fill your details below to make your payment.</p>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Bank Name</label>
