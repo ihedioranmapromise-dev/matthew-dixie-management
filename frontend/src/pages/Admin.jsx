@@ -26,6 +26,7 @@ const Admin = () => {
   const [tiers, setTiers] = useState([]);
   const [users, setUsers] = useState([]);
   const [media, setMedia] = useState([]);
+  const [blogPosts, setBlogPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState({});
   const [selectedApp, setSelectedApp] = useState(null);
@@ -43,6 +44,17 @@ const Admin = () => {
   const [pricingData, setPricingData] = useState([]);
   const [editingPricing, setEditingPricing] = useState(null);
   const [pricingForm, setPricingForm] = useState({ price_monthly: 0 });
+  // Blog state
+  const [editingBlog, setEditingBlog] = useState(null);
+  const [blogForm, setBlogForm] = useState({
+    title: '',
+    slug: '',
+    excerpt: '',
+    content: '',
+    image_url: '',
+    category: '',
+    is_published: false
+  });
   const [mediaForm, setMediaForm] = useState({
     title: '',
     type: 'image',
@@ -111,9 +123,27 @@ const Admin = () => {
     }
   };
 
+  const fetchBlogPosts = async () => {
+    try {
+      const res = await api.get('/admin/blog-posts', { headers });
+      setBlogPosts(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
-      await Promise.all([fetchApplications(), fetchTiers(), fetchUsers(), fetchSupportInfo(), fetchPressContent(), fetchMedia(), fetchPricing()]);
+      await Promise.all([
+        fetchApplications(),
+        fetchTiers(),
+        fetchUsers(),
+        fetchSupportInfo(),
+        fetchPressContent(),
+        fetchMedia(),
+        fetchPricing(),
+        fetchBlogPosts()
+      ]);
       setLoading(false);
     };
     fetchAll();
@@ -225,6 +255,18 @@ const Admin = () => {
     }
   };
 
+  // --- Delete User (cascading) ---
+  const deleteUser = async (userId) => {
+    if (!confirm('Delete this user? This will remove their application, fan card, and gift kit permanently.')) return;
+    try {
+      await api.delete(`/admin/users/${userId}`, { headers });
+      await fetchUsers();
+      alert('User deleted successfully');
+    } catch (error) {
+      alert('Error deleting user: ' + error.message);
+    }
+  };
+
   const openUserDetails = async (user) => {
     setSelectedUser(user);
     setShowUserModal(true);
@@ -276,6 +318,53 @@ const Admin = () => {
       alert('Pricing updated successfully');
     } catch (error) {
       alert('Error updating pricing');
+    }
+  };
+
+  // --- Blog functions ---
+  const startEditBlog = (post) => {
+    setEditingBlog(post.id);
+    setBlogForm({
+      title: post.title || '',
+      slug: post.slug || '',
+      excerpt: post.excerpt || '',
+      content: post.content || '',
+      image_url: post.image_url || '',
+      category: post.category || '',
+      is_published: post.is_published || false
+    });
+  };
+  const cancelBlogEdit = () => {
+    setEditingBlog(null);
+    setBlogForm({ title: '', slug: '', excerpt: '', content: '', image_url: '', category: '', is_published: false });
+  };
+  const saveBlogPost = async () => {
+    try {
+      const payload = { ...blogForm };
+      // Auto-generate slug if not provided
+      if (!payload.slug && payload.title) {
+        payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      }
+      if (editingBlog) {
+        await api.put(`/admin/blog-posts/${editingBlog}`, payload, { headers });
+      } else {
+        await api.post('/admin/blog-posts', payload, { headers });
+      }
+      await fetchBlogPosts();
+      cancelBlogEdit();
+      alert(editingBlog ? 'Blog post updated' : 'Blog post created');
+    } catch (error) {
+      alert('Error saving blog post: ' + error.message);
+    }
+  };
+  const deleteBlogPost = async (id) => {
+    if (!confirm('Delete this blog post?')) return;
+    try {
+      await api.delete(`/admin/blog-posts/${id}`, { headers });
+      await fetchBlogPosts();
+      alert('Blog post deleted');
+    } catch (error) {
+      alert('Error deleting blog post: ' + error.message);
     }
   };
 
@@ -369,7 +458,7 @@ const Admin = () => {
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="font-serif text-3xl text-white mb-2">Admin Panel</h1>
-        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, users, media, content, and pricing</p>
+        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, users, media, content, pricing, and blog</p>
 
         <div className="flex flex-wrap gap-4 mb-6 border-b border-white/10">
           <button onClick={() => setActiveTab('applications')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'applications' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Applications</button>
@@ -378,6 +467,7 @@ const Admin = () => {
           <button onClick={() => setActiveTab('press')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'press' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Press</button>
           <button onClick={() => setActiveTab('media')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'media' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Media</button>
           <button onClick={() => setActiveTab('pricing')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'pricing' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Pricing</button>
+          <button onClick={() => setActiveTab('blog')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'blog' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Blog</button>
         </div>
 
         {activeTab === 'applications' && (
@@ -515,11 +605,12 @@ const Admin = () => {
                     <th className="text-left py-2 px-4 text-white/40">Status</th>
                     <th className="text-left py-2 px-4 text-white/40">Tier</th>
                     <th className="text-left py-2 px-4 text-white/40">Joined</th>
+                    <th className="text-left py-2 px-4 text-white/40">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.length === 0 ? (
-                    <tr><td colSpan="7" className="text-center py-8 text-white/30">No users found</td></tr>
+                    <tr><td colSpan="8" className="text-center py-8 text-white/30">No users found</td></tr>
                   ) : (
                     users.map((user) => (
                       <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition" onClick={() => openUserDetails(user)}>
@@ -543,6 +634,14 @@ const Admin = () => {
                         </td>
                         <td className="py-2 px-4 text-white/60 capitalize">{user.membership_tier || 'None'}</td>
                         <td className="py-2 px-4 text-white/40">{new Date(user.created_at).toLocaleDateString()}</td>
+                        <td className="py-2 px-4" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => deleteUser(user.id)}
+                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition"
+                          >
+                            Delete
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -744,6 +843,103 @@ const Admin = () => {
                             </td>
                           </>
                         )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'blog' && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-xl text-white">Blog Posts</h2>
+              <span className="text-sm text-white/40">{blogPosts.length} total</span>
+            </div>
+
+            {/* Create/Edit Form */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/5 mb-6">
+              <h3 className="font-serif text-lg text-white mb-3">{editingBlog ? 'Edit Post' : 'Create New Post'}</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1">Title *</label>
+                  <input type="text" value={blogForm.title} onChange={(e) => setBlogForm({ ...blogForm, title: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1">Slug (URL) *</label>
+                  <input type="text" value={blogForm.slug} onChange={(e) => setBlogForm({ ...blogForm, slug: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" placeholder="auto-generated if empty" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <label className="block text-xs text-white/40 mb-1">Excerpt</label>
+                <input type="text" value={blogForm.excerpt} onChange={(e) => setBlogForm({ ...blogForm, excerpt: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+              </div>
+              <div className="mt-2">
+                <label className="block text-xs text-white/40 mb-1">Content *</label>
+                <textarea value={blogForm.content} onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })} rows={4} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+              </div>
+              <div className="grid grid-cols-3 gap-4 mt-2">
+                <div>
+                  <label className="block text-xs text-white/40 mb-1">Image URL</label>
+                  <input type="text" value={blogForm.image_url} onChange={(e) => setBlogForm({ ...blogForm, image_url: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-white/40 mb-1">Category</label>
+                  <input type="text" value={blogForm.category} onChange={(e) => setBlogForm({ ...blogForm, category: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                </div>
+                <div className="flex items-center">
+                  <label className="flex items-center gap-2 text-sm text-white/60">
+                    <input type="checkbox" checked={blogForm.is_published} onChange={(e) => setBlogForm({ ...blogForm, is_published: e.target.checked })} className="accent-gold" />
+                    Published
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button onClick={saveBlogPost} className="px-4 py-1 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition">
+                  {editingBlog ? 'Update Post' : 'Create Post'}
+                </button>
+                {editingBlog && (
+                  <button onClick={cancelBlogEdit} className="px-4 py-1 border border-white/20 text-white/60 rounded-full text-xs hover:border-white/40 transition">
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Blog List */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-2 px-4 text-white/40">ID</th>
+                    <th className="text-left py-2 px-4 text-white/40">Title</th>
+                    <th className="text-left py-2 px-4 text-white/40">Category</th>
+                    <th className="text-left py-2 px-4 text-white/40">Status</th>
+                    <th className="text-left py-2 px-4 text-white/40">Date</th>
+                    <th className="text-left py-2 px-4 text-white/40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {blogPosts.length === 0 ? (
+                    <tr><td colSpan="6" className="text-center py-8 text-white/30">No blog posts found</td></tr>
+                  ) : (
+                    blogPosts.map((post) => (
+                      <tr key={post.id} className="border-b border-white/5">
+                        <td className="py-2 px-4 text-white/60">{post.id}</td>
+                        <td className="py-2 px-4 text-white/60">{post.title}</td>
+                        <td className="py-2 px-4 text-white/60">{post.category || 'General'}</td>
+                        <td className="py-2 px-4">
+                          <span className={`px-2 py-1 rounded-full text-xs ${post.is_published ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                            {post.is_published ? 'Published' : 'Draft'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-4 text-white/40">{new Date(post.created_at).toLocaleDateString()}</td>
+                        <td className="py-2 px-4">
+                          <button onClick={() => startEditBlog(post)} className="px-2 py-1 bg-gold/20 text-gold rounded-full text-xs hover:bg-gold/30 transition mr-1">Edit</button>
+                          <button onClick={() => deleteBlogPost(post.id)} className="px-2 py-1 bg-red-500/20 text-red-400 rounded-full text-xs hover:bg-red-500/30 transition">Delete</button>
+                        </td>
                       </tr>
                     ))
                   )}
