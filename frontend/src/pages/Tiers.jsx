@@ -39,16 +39,13 @@ const Tiers = () => {
             <div className="mt-2 mb-4">
               <span className="text-3xl font-bold text-white">${tier.price_monthly}</span>
               <span className="text-warm-sand-light opacity-60"> / month</span>
-              {tier.price_yearly && (
-                <div className="text-sm text-white/40">or ${tier.price_yearly} yearly</div>
-              )}
             </div>
             <ul className="space-y-3 text-sm text-warm-sand-light opacity-80">
               {(tier.benefits || []).map((benefit, i) => (
                 <li key={i} className="flex items-center gap-2"><span className="text-gold">◆</span> {benefit}</li>
               ))}
             </ul>
-            <Link to="/apply" className="block text-center mt-6 px-6 py-3 border border-gold text-gold rounded-full text-sm uppercase tracking-wider font-semibold hover:bg-gold hover:text-charcoal transition">Apply Now</Link>
+            <Link to="/apply" className="block text-center mt-6 px-6 py-3 border border-gold text-gold rounded-full text-sm uppercase tracking-wider font-semibold hover:bg-gold hover:text-charcoal transition">Join Now</Link>
           </div>
         ))}
       </div>

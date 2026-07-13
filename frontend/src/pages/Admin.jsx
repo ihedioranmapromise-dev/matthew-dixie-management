@@ -1,4 +1,3 @@
-cat > src/pages/Admin.jsx << 'EOF'
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
@@ -43,7 +42,7 @@ const Admin = () => {
   const [loadingUserDetails, setLoadingUserDetails] = useState(false);
   const [pricingData, setPricingData] = useState([]);
   const [editingPricing, setEditingPricing] = useState(null);
-  const [pricingForm, setPricingForm] = useState({ price_monthly: 0, price_yearly: 0 });
+  const [pricingForm, setPricingForm] = useState({ price_monthly: 0 });
   const [mediaForm, setMediaForm] = useState({
     title: '',
     type: 'image',
@@ -54,7 +53,6 @@ const Admin = () => {
   const [tierForm, setTierForm] = useState({
     name: '',
     price_monthly: 0,
-    price_yearly: 0,
     benefits: [],
     is_active: true
   });
@@ -146,7 +144,6 @@ const Admin = () => {
     setTierForm({
       name: tier.name,
       price_monthly: tier.price_monthly,
-      price_yearly: tier.price_yearly,
       benefits: tier.benefits || [],
       is_active: tier.is_active
     });
@@ -275,7 +272,7 @@ const Admin = () => {
       await api.put(`/admin/investment-tier-prices/${id}`, pricingForm, { headers });
       await fetchPricing();
       setEditingPricing(null);
-      setPricingForm({ price_monthly: 0, price_yearly: 0 });
+      setPricingForm({ price_monthly: 0 });
       alert('Pricing updated successfully');
     } catch (error) {
       alert('Error updating pricing');
@@ -466,10 +463,6 @@ const Admin = () => {
                           <input type="number" value={tierForm.price_monthly} onChange={(e) => setTierForm({ ...tierForm, price_monthly: parseInt(e.target.value) || 0 })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
                         </div>
                         <div className="w-24">
-                          <label className="block text-xs text-white/40">Yearly $</label>
-                          <input type="number" value={tierForm.price_yearly} onChange={(e) => setTierForm({ ...tierForm, price_yearly: parseInt(e.target.value) || 0 })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
-                        </div>
-                        <div className="w-24">
                           <label className="block text-xs text-white/40">Active</label>
                           <select value={tierForm.is_active ? 'true' : 'false'} onChange={(e) => setTierForm({ ...tierForm, is_active: e.target.value === 'true' })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm">
                             <option value="true">Yes</option>
@@ -492,7 +485,6 @@ const Admin = () => {
                         <h3 className="font-serif text-xl text-white capitalize">{tier.name}</h3>
                         <div className="flex gap-4 text-sm mt-1">
                           <span className="text-white/60">${tier.price_monthly}/mo</span>
-                          <span className="text-white/60">${tier.price_yearly}/yr</span>
                           <span className={tier.is_active ? 'text-green-400' : 'text-red-400'}>{tier.is_active ? 'Active' : 'Inactive'}</span>
                         </div>
                         <ul className="mt-2 text-sm text-white/40 list-disc list-inside">{(tier.benefits || []).map((b, i) => <li key={i}>{b}</li>)}</ul>
@@ -710,13 +702,12 @@ const Admin = () => {
                     <th className="text-left py-2 px-4 text-white/40">Investment Plan</th>
                     <th className="text-left py-2 px-4 text-white/40">Tier</th>
                     <th className="text-left py-2 px-4 text-white/40">Monthly Price ($)</th>
-                    <th className="text-left py-2 px-4 text-white/40">Yearly Price ($)</th>
                     <th className="text-left py-2 px-4 text-white/40">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pricingData.length === 0 ? (
-                    <tr><td colSpan="5" className="text-center py-8 text-white/30">No pricing entries found</td></tr>
+                    <tr><td colSpan="4" className="text-center py-8 text-white/30">No pricing entries found</td></tr>
                   ) : (
                     pricingData.map((p) => (
                       <tr key={p.id} className="border-b border-white/5">
@@ -733,14 +724,6 @@ const Admin = () => {
                               />
                             </td>
                             <td className="py-2 px-4">
-                              <input
-                                type="number"
-                                value={pricingForm.price_yearly}
-                                onChange={(e) => setPricingForm({ ...pricingForm, price_yearly: parseInt(e.target.value) || 0 })}
-                                className="w-24 p-1 rounded bg-white/5 border border-white/10 text-white text-sm"
-                              />
-                            </td>
-                            <td className="py-2 px-4">
                               <button onClick={() => updatePricing(p.id)} className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs hover:bg-green-500/30 transition mr-1">Save</button>
                               <button onClick={() => { setEditingPricing(null); }} className="px-2 py-1 bg-gray-500/20 text-gray-400 rounded-full text-xs hover:bg-gray-500/30 transition">Cancel</button>
                             </td>
@@ -748,12 +731,11 @@ const Admin = () => {
                         ) : (
                           <>
                             <td className="py-2 px-4 text-white">${p.price_monthly}</td>
-                            <td className="py-2 px-4 text-white">${p.price_yearly || '-'}</td>
                             <td className="py-2 px-4">
                               <button
                                 onClick={() => {
                                   setEditingPricing(p.id);
-                                  setPricingForm({ price_monthly: p.price_monthly, price_yearly: p.price_yearly || 0 });
+                                  setPricingForm({ price_monthly: p.price_monthly });
                                 }}
                                 className="px-2 py-1 bg-gold/20 text-gold rounded-full text-xs hover:bg-gold/30 transition"
                               >
@@ -910,4 +892,3 @@ const Admin = () => {
 };
 
 export default Admin;
-EOF

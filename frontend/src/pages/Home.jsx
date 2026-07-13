@@ -34,7 +34,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-charcoal text-warm-sand pt-20">
-      {/* Hero Section */}
       <div className="relative min-h-[90vh] flex items-center px-6 md:px-20">
         {content.hero_background_image && (
           <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: `url(${content.hero_background_image})` }} />
@@ -55,7 +54,7 @@ const Home = () => {
           </p>
           <div className="flex flex-wrap gap-4 mt-8">
             <Link to="/apply" className="px-8 py-3 bg-gold text-charcoal rounded-full font-semibold uppercase tracking-wider text-sm hover:bg-gold-light transition">
-              Apply Now
+              Join Now
             </Link>
             <Link to="/tiers" className="px-8 py-3 border border-white/20 text-white rounded-full font-semibold uppercase tracking-wider text-sm hover:border-gold hover:text-gold transition">
               Explore Tiers
@@ -72,7 +71,6 @@ const Home = () => {
         </div>
       </div>
 
-      {/* About / Mission Section */}
       <div className="max-w-7xl mx-auto px-6 md:px-20 py-20">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>

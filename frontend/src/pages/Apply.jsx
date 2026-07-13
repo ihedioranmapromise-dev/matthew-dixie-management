@@ -29,10 +29,8 @@ const Apply = () => {
     card_number: '',
     card_expiry: '',
     card_cvv: '',
-    billing_cycle: 'monthly'
   });
 
-  // Fetch tiers and investments on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -49,7 +47,6 @@ const Apply = () => {
     fetchData();
   }, []);
 
-  // Fetch tier prices when investment plan changes
   useEffect(() => {
     if (formData.investmentPlan) {
       const fetchPrices = async () => {
@@ -106,12 +103,6 @@ const Apply = () => {
     }
   };
 
-  const getPrice = (tierId) => {
-    const price = tierPrices.find(p => p.tier_id === tierId);
-    return price ? `$${price.price_monthly}/mo` : 'Select plan first';
-  };
-
-  // If initial data is still loading (tiers or investments not fetched)
   if (tiers.length === 0 && investments.length === 0) {
     return <LoadingSpinner />;
   }
@@ -204,7 +195,7 @@ const Apply = () => {
                         <input type="radio" name="tier" value={price.tier_id} checked={formData.tier === price.tier_id.toString()} onChange={handleChange} className="mr-3 accent-gold" />
                         <div>
                           <div className="font-semibold text-white capitalize">{price.tier_name}</div>
-                          <div className="text-sm text-white/40">${price.price_monthly}/mo {price.price_yearly ? `| $${price.price_yearly}/yr` : ''}</div>
+                          <div className="text-sm text-white/40">${price.price_monthly}/mo</div>
                         </div>
                       </label>
                     ))}
@@ -213,14 +204,6 @@ const Apply = () => {
                 {formData.investmentPlan && tierPrices.length === 0 && (
                   <p className="text-yellow-400 text-sm">No tiers available for this investment plan yet.</p>
                 )}
-                <div>
-                  <label className="block text-sm font-medium mb-1">Billing Cycle</label>
-                  <select name="billing_cycle" value={formData.billing_cycle} onChange={handleChange}
-                    className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none">
-                    <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly (save ~20%)</option>
-                  </select>
-                </div>
               </div>
               <div className="flex justify-between mt-6">
                 <button type="button" onClick={prevStep} className="px-6 py-2 border border-white/20 text-white rounded-full hover:border-gold hover:text-gold transition">
