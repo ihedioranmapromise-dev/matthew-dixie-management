@@ -24,19 +24,23 @@ const Press = () => {
   const episodes = content.press_featured_episodes?.split('\n').filter(Boolean) || [];
   const stories = content.press_stories?.split('\n').filter(Boolean) || [];
 
-  // Use uploaded profile image or fallback to avatar
   const profileImage = content.profile_image_url || 'https://ui-avatars.com/api/?name=Matthew+Dixie&size=300&background=C9A96E&color=1A1A1A&bold=true';
-
-  // Split social links if stored as newline-separated
   const socialLinks = content.press_social_links?.split('\n').filter(Boolean) || [];
 
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-5xl mx-auto">
-        {/* Logo (if any) */}
+        {/* === MD LOGO (Golden Circle with MD) === */}
+        <div className="flex justify-center mb-8">
+          <div className="w-24 h-24 rounded-full border-4 border-gold flex items-center justify-center shadow-xl shadow-gold/10">
+            <span className="font-serif text-3xl font-bold text-gold">MD</span>
+          </div>
+        </div>
+
+        {/* Logo (if any custom logo URL is set in site_content) */}
         {content.logo_url && (
-          <div className="mb-6">
-            <img src={content.logo_url} alt="Matthew Dixie Logo" className="h-20 w-auto" />
+          <div className="mb-6 text-center">
+            <img src={content.logo_url} alt="Matthew Dixie Logo" className="h-20 w-auto mx-auto" />
           </div>
         )}
 
@@ -51,24 +55,19 @@ const Press = () => {
             <h1 className="font-serif text-4xl md:text-5xl text-white">Matthew Dixie</h1>
             <p className="text-warm-sand-light opacity-70 text-lg">Press Kit</p>
             <p className="text-warm-sand-light opacity-50 text-sm">Media resources for Matthew Dixie</p>
-            {/* Social Links */}
             {socialLinks.length > 0 && (
               <div className="flex flex-wrap gap-4 mt-3">
-                {socialLinks.map((link, i) => {
-                  // Simple detection: if it contains 'instagram' or '@' we can show an icon
-                  const label = link.includes('@') ? link : link;
-                  return (
-                    <a
-                      key={i}
-                      href={link.startsWith('http') ? link : `https://${link}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-gold hover:text-gold-light transition underline underline-offset-2"
-                    >
-                      {label}
-                    </a>
-                  );
-                })}
+                {socialLinks.map((link, i) => (
+                  <a
+                    key={i}
+                    href={link.startsWith('http') ? link : `https://${link}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-gold hover:text-gold-light transition underline underline-offset-2"
+                  >
+                    {link}
+                  </a>
+                ))}
               </div>
             )}
           </div>
@@ -106,7 +105,7 @@ const Press = () => {
           </div>
         )}
 
-        {/* Photos placeholder – we can later replace with uploaded press photos */}
+        {/* Photos placeholder */}
         <div className="bg-white/5 rounded-2xl p-6 border border-white/5 mb-6">
           <h2 className="font-serif text-xl text-white mb-3">Press Photos</h2>
           <div className="grid grid-cols-3 gap-4">
