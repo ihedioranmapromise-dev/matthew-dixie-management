@@ -423,9 +423,9 @@ const Admin = () => {
                             onChange={(e) => updateApplicationTier(app.id, e.target.value)}
                             className="bg-white/5 border border-white/10 rounded px-2 py-1 text-white text-xs focus:border-gold"
                           >
-                            <option value="explorer">Explorer</option>
-                            <option value="builder">Builder</option>
-                            <option value="master">Master</option>
+                            <option value="explorer" className="bg-charcoal text-white">Explorer</option>
+                            <option value="builder" className="bg-charcoal text-white">Builder</option>
+                            <option value="master" className="bg-charcoal text-white">Master</option>
                           </select>
                         </td>
                         <td className="py-2 px-4" onClick={(e) => e.stopPropagation()}>
@@ -465,8 +465,8 @@ const Admin = () => {
                         <div className="w-24">
                           <label className="block text-xs text-white/40">Active</label>
                           <select value={tierForm.is_active ? 'true' : 'false'} onChange={(e) => setTierForm({ ...tierForm, is_active: e.target.value === 'true' })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
+                            <option value="true" className="bg-charcoal text-white">Yes</option>
+                            <option value="false" className="bg-charcoal text-white">No</option>
                           </select>
                         </div>
                       </div>
@@ -616,8 +616,8 @@ const Admin = () => {
                     onChange={(e) => setMediaForm({ ...mediaForm, type: e.target.value })} 
                     className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
                   >
-                    <option value="image">Image</option>
-                    <option value="video">Video</option>
+                    <option value="image" className="bg-charcoal text-white">Image</option>
+                    <option value="video" className="bg-charcoal text-white">Video</option>
                   </select>
                 </div>
               </div>
@@ -629,9 +629,9 @@ const Admin = () => {
                   onChange={(e) => setMediaForm({ ...mediaForm, category: e.target.value })} 
                   className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
                 >
-                  <option value="">Select a slot...</option>
+                  <option value="" className="bg-charcoal text-white/60">Select a slot...</option>
                   {SLOTS.map((slot) => (
-                    <option key={slot.key} value={slot.key}>{slot.label}</option>
+                    <option key={slot.key} value={slot.key} className="bg-charcoal text-white">{slot.label}</option>
                   ))}
                 </select>
                 <p className="text-xs text-white/30 mt-1">The media will automatically be placed in the selected slot.</p>
