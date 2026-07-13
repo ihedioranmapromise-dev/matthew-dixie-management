@@ -104,15 +104,13 @@ const Apply = () => {
         localStorage.setItem('user', JSON.stringify(user));
       }
 
-      const response = await api.post(
-        '/user/application',
-        {
-          ...formData,
-          government_id_url: '',
-          government_id_filename: formData.government_id_file ? formData.government_id_file.name : ''
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // No manual headers needed – interceptor adds the token
+      const response = await api.post('/user/application', {
+        ...formData,
+        government_id_url: '',
+        government_id_filename: formData.government_id_file ? formData.government_id_file.name : ''
+      });
+
       console.log(response.data);
       setSubmitted(true);
       setStep(5);
