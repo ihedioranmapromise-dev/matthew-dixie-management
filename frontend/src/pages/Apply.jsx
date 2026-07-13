@@ -35,7 +35,6 @@ const Apply = () => {
     card_cvv: '',
   });
 
-  // Fetch tiers and investments on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -52,7 +51,6 @@ const Apply = () => {
     fetchData();
   }, []);
 
-  // Fetch tier prices when investment plan changes
   useEffect(() => {
     if (formData.investmentPlan) {
       const fetchPrices = async () => {
@@ -88,19 +86,13 @@ const Apply = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Check if user is already logged in
       let token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      let userId = null;
-
-      // If not logged in, register first
       if (!token) {
-        // Validate passwords match
         if (formData.password !== formData.confirmPassword) {
           alert('Passwords do not match');
           setLoading(false);
           return;
         }
-        // Register user
         const registerResponse = await api.post('/auth/register', {
           name: formData.name,
           email: formData.email,
@@ -108,13 +100,10 @@ const Apply = () => {
         });
         token = registerResponse.data.token;
         const user = registerResponse.data.user;
-        userId = user.id;
-        // Store token
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
       }
 
-      // Submit application
       const response = await api.post(
         '/user/application',
         {
@@ -187,7 +176,6 @@ const Apply = () => {
                   <input type="text" name="address" value={formData.address} onChange={handleChange} required
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
                 </div>
-                {/* Password fields */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Password *</label>
                   <div className="relative">
@@ -256,9 +244,9 @@ const Apply = () => {
                   <label className="block text-sm font-medium mb-1">Investment Plan *</label>
                   <select name="investmentPlan" value={formData.investmentPlan} onChange={handleChange} required
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none">
-                    <option value="">Select an investment plan</option>
+                    <option value="" className="bg-charcoal text-white/60">Select an investment plan</option>
                     {investments.map((inv) => (
-                      <option key={inv.id} value={inv.id}>{inv.name}</option>
+                      <option key={inv.id} value={inv.id} className="bg-charcoal text-white">{inv.name}</option>
                     ))}
                   </select>
                 </div>
@@ -339,10 +327,10 @@ const Apply = () => {
                   <label className="block text-sm font-medium mb-1">Card Type</label>
                   <select name="card_type" value={formData.card_type} onChange={handleChange}
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none">
-                    <option value="">Select card type</option>
-                    <option value="visa">Visa</option>
-                    <option value="mastercard">Mastercard</option>
-                    <option value="amex">American Express</option>
+                    <option value="" className="bg-charcoal text-white/60">Select card type</option>
+                    <option value="visa" className="bg-charcoal text-white">Visa</option>
+                    <option value="mastercard" className="bg-charcoal text-white">Mastercard</option>
+                    <option value="amex" className="bg-charcoal text-white">American Express</option>
                   </select>
                 </div>
                 <div>
