@@ -5,6 +5,8 @@ const FanCard = require('../models/FanCard');
 const GiftKit = require('../models/GiftKit');
 const User = require('../models/User');
 const { pool } = require('../config/db');
+const sendEmail = require('../utils/email');
+const createNotification = require('../utils/notifications');
 const router = express.Router();
 
 // Get user's application status
@@ -57,13 +59,32 @@ router.post('/application', auth, async (req, res) => {
       billing_cycle
     });
 
-  // Set user status to pending
-await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['pending', req.user.id]);
+    // Set user status to pending
+    await pool.query('UPDATE users SET status = $1 WHERE id = $2', ['pending', req.user.id]);
 
-// Update user's membership tier
-await pool.query('UPDATE users SET membership_tier = $1 WHERE id = $2', [tier, req.user.id]);
+    // Update user's membership tier
+    await pool.query('UPDATE users SET membership_tier = $1 WHERE id = $2', [tier, req.user.id]);
 
-res.status(201).json(app);
+    // In-app notification
+    await createNotification(
+      req.user.id,
+      'application_submitted',
+      `Your application for ${tier} tier has been submitted. Awaiting approval.`
+    );
+
+    // Email notification
+    const user = await User.findById(req.user.id);
+    await sendEmail(
+      user.email,
+      'Application Submitted – Matthew Dixie',
+      `<h1>Application Submitted</h1>
+       <p>Thank you for applying to join the Inner Circle, ${user.name}.</p>
+       <p>Your application for the <strong>${tier}</strong> tier is now under review.</p>
+       <p>You will receive a notification once your application is approved.</p>
+       <p>— The Matthew Dixie Team</p>`
+    );
+
+    res.status(201).json(app);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -97,6 +118,49 @@ router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Notifications ----
+// Get all notifications
+router.get('/notifications', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark notification as read
+router.put('/notifications/:id/read', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2 RETURNING *',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark all notifications as read
+router.put('/notifications/read-all', auth, async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE notifications SET read = true WHERE user_id = $1',
+      [req.user.id]
+    );
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
