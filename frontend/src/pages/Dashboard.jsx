@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const Dashboard = () => {
@@ -74,8 +74,18 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="font-serif text-3xl md:text-4xl text-white mb-2">Dashboard</h1>
-        <p className="text-warm-sand-light opacity-70 mb-8">Welcome back, {user?.name || 'Member'}.</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="font-serif text-3xl md:text-4xl text-white mb-2">Dashboard</h1>
+            <p className="text-warm-sand-light opacity-70">Welcome back, {user?.name || 'Member'}.</p>
+          </div>
+          <Link
+            to="/profile"
+            className="px-4 py-2 border border-gold text-gold rounded-full text-sm font-semibold hover:bg-gold hover:text-charcoal transition"
+          >
+            Edit Profile
+          </Link>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Fan Card */}
