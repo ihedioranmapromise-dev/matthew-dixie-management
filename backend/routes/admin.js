@@ -391,3 +391,36 @@ router.get('/support-info', async (req, res) => {
 });
 
 module.exports = router;
+
+// ---- Investment Tier Prices ----
+// Get all pricing entries
+router.get('/investment-tier-prices', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT itp.*, i.name as investment_name, t.name as tier_name
+      FROM investment_tier_prices itp
+      JOIN investments i ON itp.investment_plan_id = i.id
+      JOIN tiers t ON itp.tier_id = t.id
+      ORDER BY i.id, t.id
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a specific pricing entry
+router.put('/investment-tier-prices/:id', async (req, res) => {
+  try {
+    const { price_monthly, price_yearly } = req.body;
+    const id = req.params.id;
+    const result = await pool.query(
+      'UPDATE investment_tier_prices SET price_monthly = $1, price_yearly = $2 WHERE id = $3 RETURNING *',
+      [price_monthly, price_yearly, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Pricing entry not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
