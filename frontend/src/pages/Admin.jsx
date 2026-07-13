@@ -52,8 +52,11 @@ const Admin = () => {
     excerpt: '',
     content: '',
     image_url: '',
+    video_url: '',
     category: '',
-    is_published: false
+    is_published: false,
+    fileImage: null,
+    fileVideo: null
   });
   const [mediaForm, setMediaForm] = useState({
     title: '',
@@ -321,7 +324,35 @@ const Admin = () => {
     }
   };
 
-  // --- Blog functions ---
+  // --- Blog functions with file upload ---
+  const handleBlogFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBlogForm({ ...blogForm, fileImage: file });
+    }
+  };
+
+  const handleBlogVideoSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBlogForm({ ...blogForm, fileVideo: file });
+    }
+  };
+
+  const uploadBlogFile = async (file, folder) => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${folder}/${fileName}`;
+    const { data, error } = await supabase.storage
+      .from('media')
+      .upload(filePath, file);
+    if (error) throw error;
+    const { data: publicUrlData } = supabase.storage
+      .from('media')
+      .getPublicUrl(filePath);
+    return publicUrlData.publicUrl;
+  };
+
   const startEditBlog = (post) => {
     setEditingBlog(post.id);
     setBlogForm({
@@ -330,17 +361,30 @@ const Admin = () => {
       excerpt: post.excerpt || '',
       content: post.content || '',
       image_url: post.image_url || '',
+      video_url: post.video_url || '',
       category: post.category || '',
-      is_published: post.is_published || false
+      is_published: post.is_published || false,
+      fileImage: null,
+      fileVideo: null
     });
   };
   const cancelBlogEdit = () => {
     setEditingBlog(null);
-    setBlogForm({ title: '', slug: '', excerpt: '', content: '', image_url: '', category: '', is_published: false });
+    setBlogForm({ title: '', slug: '', excerpt: '', content: '', image_url: '', video_url: '', category: '', is_published: false, fileImage: null, fileVideo: null });
   };
   const saveBlogPost = async () => {
     try {
-      const payload = { ...blogForm };
+      let payload = { ...blogForm };
+      // Upload image if selected
+      if (blogForm.fileImage) {
+        const url = await uploadBlogFile(blogForm.fileImage, 'blog-images');
+        payload.image_url = url;
+      }
+      // Upload video if selected
+      if (blogForm.fileVideo) {
+        const url = await uploadBlogFile(blogForm.fileVideo, 'blog-videos');
+        payload.video_url = url;
+      }
       // Auto-generate slug if not provided
       if (!payload.slug && payload.title) {
         payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -868,7 +912,7 @@ const Admin = () => {
                   <input type="text" value={blogForm.title} onChange={(e) => setBlogForm({ ...blogForm, title: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Slug (URL) *</label>
+                  <label className="block text-xs text-white/40 mb-1">Slug (URL)</label>
                   <input type="text" value={blogForm.slug} onChange={(e) => setBlogForm({ ...blogForm, slug: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" placeholder="auto-generated if empty" />
                 </div>
               </div>
@@ -880,14 +924,35 @@ const Admin = () => {
                 <label className="block text-xs text-white/40 mb-1">Content *</label>
                 <textarea value={blogForm.content} onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })} rows={4} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
               </div>
-              <div className="grid grid-cols-3 gap-4 mt-2">
+              <div className="grid grid-cols-2 gap-4 mt-2">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1">Image URL</label>
-                  <input type="text" value={blogForm.image_url} onChange={(e) => setBlogForm({ ...blogForm, image_url: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                  <label className="block text-xs text-white/40 mb-1">Image (upload)</label>
+                  <input type="file" accept="image/*" onChange={handleBlogFileSelect} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
+                  {blogForm.image_url && <p className="text-xs text-white/30 mt-1">Current: {blogForm.image_url.substring(0, 30)}...</p>}
                 </div>
                 <div>
+                  <label className="block text-xs text-white/40 mb-1">Video (upload)</label>
+                  <input type="file" accept="video/*" onChange={handleBlogVideoSelect} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
+                  {blogForm.video_url && <p className="text-xs text-white/30 mt-1">Current: {blogForm.video_url.substring(0, 30)}...</p>}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div>
                   <label className="block text-xs text-white/40 mb-1">Category</label>
-                  <input type="text" value={blogForm.category} onChange={(e) => setBlogForm({ ...blogForm, category: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                  <select
+                    value={blogForm.category}
+                    onChange={(e) => setBlogForm({ ...blogForm, category: e.target.value })}
+                    className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm"
+                  >
+                    <option value="" className="bg-charcoal text-white/60">Select category</option>
+                    <option value="Community" className="bg-charcoal text-white">Community</option>
+                    <option value="Updates" className="bg-charcoal text-white">Updates</option>
+                    <option value="Interviews" className="bg-charcoal text-white">Interviews</option>
+                    <option value="News" className="bg-charcoal text-white">News</option>
+                    <option value="Events" className="bg-charcoal text-white">Events</option>
+                    <option value="Behind the Scenes" className="bg-charcoal text-white">Behind the Scenes</option>
+                    <option value="Other" className="bg-charcoal text-white">Other</option>
+                  </select>
                 </div>
                 <div className="flex items-center">
                   <label className="flex items-center gap-2 text-sm text-white/60">
