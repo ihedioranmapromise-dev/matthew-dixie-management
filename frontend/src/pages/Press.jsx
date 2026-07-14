@@ -30,14 +30,7 @@ const Press = () => {
   return (
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-5xl mx-auto">
-        {/* === MD LOGO (Golden Circle with MD) === */}
-        <div className="flex justify-center mb-8">
-          <div className="w-24 h-24 rounded-full border-4 border-gold flex items-center justify-center shadow-xl shadow-gold/10">
-            <span className="font-serif text-3xl font-bold text-gold">MD</span>
-          </div>
-        </div>
-
-        {/* Logo (if any custom logo URL is set in site_content) */}
+        {/* Logo (if custom logo URL is set in site_content) */}
         {content.logo_url && (
           <div className="mb-6 text-center">
             <img src={content.logo_url} alt="Matthew Dixie Logo" className="h-20 w-auto mx-auto" />
