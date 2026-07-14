@@ -4,15 +4,19 @@ import api from '../api';
 const TierModal = ({ isOpen, onClose, investmentPlanId }) => {
   const [tiers, setTiers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isOpen && investmentPlanId) {
       const fetchTiers = async () => {
+        setLoading(true);
+        setError(null);
         try {
           const res = await api.get(`/public/investment-tier-prices/${investmentPlanId}`);
           setTiers(res.data);
         } catch (err) {
-          console.error(err);
+          console.error('Error fetching tiers:', err);
+          setError('Failed to load tiers. Please try again.');
         } finally {
           setLoading(false);
         }
@@ -24,27 +28,29 @@ const TierModal = ({ isOpen, onClose, investmentPlanId }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4" onClick={onClose}>
-      <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-serif text-3xl text-white">Choose Your Tier</h2>
-          <button onClick={onClose} className="text-white/60 hover:text-white text-3xl transition">&times;</button>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={onClose}>
+      <div className="bg-charcoal-light rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 border border-white/5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-serif text-2xl text-white">Membership Tiers</h3>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-2xl">&times;</button>
         </div>
-
         {loading ? (
           <div className="text-center py-8 text-white/40">Loading tiers...</div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-400">{error}</div>
         ) : tiers.length === 0 ? (
-          <div className="text-center py-8 text-white/40">No tiers available for this plan.</div>
+          <div className="text-center py-8 text-white/40">No tiers available for this investment plan.</div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="space-y-4">
             {tiers.map((tier) => (
-              <div key={tier.id} className="bg-white/5 rounded-2xl p-6 border border-white/10 hover:border-gold/40 transition hover:shadow-gold/10 hover:shadow-lg group">
-                <h3 className="font-serif text-2xl text-white capitalize">{tier.tier_name}</h3>
-                <div className="mt-2 text-gold text-2xl font-bold">${tier.price_monthly}<span className="text-sm text-white/40 font-normal"> / month</span></div>
-                <p className="text-white/40 text-sm mt-4">Perfect for those starting their journey.</p>
-                <button className="mt-4 w-full py-2 border border-gold text-gold rounded-full text-sm hover:bg-gold hover:text-charcoal transition font-semibold">
-                  Select {tier.tier_name}
-                </button>
+              <div key={tier.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-serif text-xl text-white capitalize">{tier.tier_name}</h4>
+                  <span className="text-gold font-semibold">${tier.price_monthly}/mo</span>
+                </div>
+                {tier.price_yearly && (
+                  <div className="text-sm text-white/40">or ${tier.price_yearly}/yr</div>
+                )}
               </div>
             ))}
           </div>
