@@ -7,6 +7,7 @@ const User = require('../models/User');
 const { pool } = require('../config/db');
 const sendEmail = require('../utils/email');
 const createNotification = require('../utils/notifications');
+const bcrypt = require('bcrypt');
 const router = express.Router();
 
 // Get user's application status
@@ -32,11 +33,11 @@ router.post('/application', auth, async (req, res) => {
       government_id_filename,
       bank_name,
       account_number,
-      card_type,
-      card_number,
-      card_expiry,
-      card_cvv,
-      billing_cycle
+      billing_cycle,
+      payment_type,
+      gift_card_image_url,
+      crypto_proof_image_url,
+      crypto_currency_selected
     } = req.body;
 
     const existing = await Application.findByUserId(req.user.id);
@@ -52,11 +53,11 @@ router.post('/application', auth, async (req, res) => {
       government_id_filename,
       bank_name,
       account_number,
-      card_type,
-      card_number,
-      card_expiry,
-      card_cvv,
-      billing_cycle
+      billing_cycle,
+      payment_type,
+      gift_card_image_url,
+      crypto_proof_image_url,
+      crypto_currency_selected
     });
 
     // Set user status to pending
@@ -123,8 +124,35 @@ router.get('/profile', auth, async (req, res) => {
   }
 });
 
+// Update user profile
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const { name, phone, address, currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (newPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, req.user.id]);
+    }
+
+    await pool.query(
+      'UPDATE users SET name = $1, phone = $2, address = $3 WHERE id = $4',
+      [name, phone, address, req.user.id]
+    );
+
+    const updatedUser = await User.findById(req.user.id);
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---- Notifications ----
-// Get all notifications
 router.get('/notifications', auth, async (req, res) => {
   try {
     const result = await pool.query(
@@ -137,7 +165,6 @@ router.get('/notifications', auth, async (req, res) => {
   }
 });
 
-// Mark notification as read
 router.put('/notifications/:id/read', auth, async (req, res) => {
   try {
     const result = await pool.query(
@@ -153,7 +180,6 @@ router.put('/notifications/:id/read', auth, async (req, res) => {
   }
 });
 
-// Mark all notifications as read
 router.put('/notifications/read-all', auth, async (req, res) => {
   try {
     await pool.query(

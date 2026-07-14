@@ -53,6 +53,15 @@ router.get('/site-content', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ---- Get active crypto wallets ----
+router.get('/crypto-wallets', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT currency, address FROM crypto_wallets WHERE is_active = true');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
 
