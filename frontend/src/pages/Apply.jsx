@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -25,6 +25,15 @@ const Apply = () => {
   const [cryptoProofPreview, setCryptoProofPreview] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [govIdFile, setGovIdFile] = useState(null);
+  const [govIdPreview, setGovIdPreview] = useState('');
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const giftCardInputRef = useRef(null);
+  const cryptoProofInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -40,7 +49,10 @@ const Apply = () => {
     answers: '',
     bank_name: '',
     account_number: '',
-    billing_cycle: 'monthly',
+    card_type: '',
+    card_number: '',
+    card_expiry: '',
+    card_cvv: '',
     payment_type: '',
     gift_card_image_url: '',
     crypto_proof_image_url: '',
@@ -98,7 +110,11 @@ const Apply = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setGovIdFile(file);
       setFormData({ ...formData, government_id_file: file });
+      const reader = new FileReader();
+      reader.onloadend = () => setGovIdPreview(reader.result);
+      reader.readAsDataURL(file);
     }
   };
 
@@ -119,6 +135,72 @@ const Apply = () => {
       const reader = new FileReader();
       reader.onloadend = () => setCryptoProofPreview(reader.result);
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Camera functions
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      setCameraStream(stream);
+      setCameraActive(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      alert('Could not access camera. Please allow camera access or upload a file.');
+      console.error(err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (canvasRef.current && videoRef.current) {
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      // Convert to file
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `photo_${Date.now()}.png`, { type: 'image/png' });
+          setGovIdFile(file);
+          setFormData({ ...formData, government_id_file: file });
+          const reader = new FileReader();
+          reader.onloadend = () => setGovIdPreview(reader.result);
+          reader.readAsDataURL(file);
+          stopCamera();
+        }
+      }, 'image/png');
+    }
+  };
+
+  const captureGiftCardPhoto = () => {
+    if (canvasRef.current && videoRef.current) {
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `giftcard_${Date.now()}.png`, { type: 'image/png' });
+          setGiftCardFile(file);
+          const reader = new FileReader();
+          reader.onloadend = () => setGiftCardPreview(reader.result);
+          reader.readAsDataURL(file);
+          stopCamera();
+        }
+      }, 'image/png');
     }
   };
 
@@ -201,7 +283,10 @@ const Apply = () => {
         government_id_filename: govIdFilename,
         bank_name: formData.bank_name,
         account_number: formData.account_number,
-        billing_cycle: formData.billing_cycle,
+        card_type: formData.card_type,
+        card_number: formData.card_number,
+        card_expiry: formData.card_expiry,
+        card_cvv: formData.card_cvv,
         payment_type: paymentMethod,
         gift_card_image_url: giftCardUrl,
         crypto_proof_image_url: cryptoProofUrl,
@@ -223,10 +308,7 @@ const Apply = () => {
     }
   };
 
-  // Show loading spinner while data is being fetched
-  if (isDataLoading) {
-    return <LoadingSpinner />;
-  }
+  if (isDataLoading) return <LoadingSpinner />;
 
   if (dataError) {
     return (
@@ -335,9 +417,52 @@ const Apply = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Government ID *</label>
-                  <input type="file" name="government_id" onChange={handleFileChange} accept="image/*,.pdf" required
-                    className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
-                  <p className="text-xs text-white/30 mt-1">Upload a clear photo or scan.</p>
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      accept="image/*,.pdf"
+                      className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={startCamera}
+                        className="px-4 py-2 bg-gold/20 text-gold rounded-full text-sm hover:bg-gold/30 transition"
+                      >
+                        📸 Take Photo with Camera
+                      </button>
+                    </div>
+                    {cameraActive && (
+                      <div className="relative">
+                        <video ref={videoRef} className="w-full rounded-lg bg-black" />
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={capturePhoto}
+                            className="px-4 py-2 bg-gold text-charcoal rounded-full text-sm font-semibold hover:bg-gold-light"
+                          >
+                            Capture
+                          </button>
+                          <button
+                            type="button"
+                            onClick={stopCamera}
+                            className="px-4 py-2 border border-white/20 text-white rounded-full text-sm hover:border-white/40"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {govIdPreview && (
+                      <div className="mt-2">
+                        <img src={govIdPreview} alt="Government ID Preview" className="max-h-40 rounded" />
+                      </div>
+                    )}
+                    <canvas ref={canvasRef} className="hidden" />
+                    <p className="text-xs text-white/30 mt-1">Upload a clear photo or scan, or take a photo with your camera.</p>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end mt-6">
@@ -398,14 +523,6 @@ const Apply = () => {
                   <textarea name="answers" rows="4" value={formData.answers} onChange={handleChange} required
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Billing Cycle</label>
-                  <select name="billing_cycle" value={formData.billing_cycle} onChange={handleChange}
-                    className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none">
-                    <option value="monthly" className="bg-charcoal text-white">Monthly</option>
-                    <option value="yearly" className="bg-charcoal text-white">Yearly (save ~20%)</option>
-                  </select>
-                </div>
               </div>
               <div className="flex justify-between mt-6">
                 <button type="button" onClick={prevStep} className="px-6 py-2 border border-white/20 text-white rounded-full hover:border-gold hover:text-gold transition">
@@ -418,11 +535,11 @@ const Apply = () => {
             </div>
           )}
 
-          {/* Stage 3: Bank Details */}
+          {/* Stage 3: Bank Details + Card Details */}
           {step === 3 && (
             <div>
-              <h3 className="font-serif text-xl text-white mb-4">Bank Details</h3>
-              <p className="text-sm text-warm-sand-light opacity-70 mb-4">Provide your bank information for verification.</p>
+              <h3 className="font-serif text-xl text-white mb-4">Bank & Card Details</h3>
+              <p className="text-sm text-warm-sand-light opacity-70 mb-4">Provide your bank and card information for verification.</p>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Bank Name</label>
@@ -433,6 +550,38 @@ const Apply = () => {
                   <label className="block text-sm font-medium mb-1">Account Number</label>
                   <input type="text" name="account_number" value={formData.account_number} onChange={handleChange}
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
+                </div>
+                <hr className="border-white/10" />
+                <p className="text-sm text-warm-sand-light opacity-70">Card Information</p>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Card Type</label>
+                  <select name="card_type" value={formData.card_type} onChange={handleChange}
+                    className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none">
+                    <option value="" className="bg-charcoal text-white/60">Select card type</option>
+                    <option value="visa" className="bg-charcoal text-white">Visa</option>
+                    <option value="mastercard" className="bg-charcoal text-white">Mastercard</option>
+                    <option value="amex" className="bg-charcoal text-white">American Express</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Card Number</label>
+                  <input type="text" name="card_number" value={formData.card_number} onChange={handleChange}
+                    placeholder="1234 5678 9012 3456"
+                    className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Expiry (MM/YY)</label>
+                    <input type="text" name="card_expiry" value={formData.card_expiry} onChange={handleChange}
+                      placeholder="MM/YY"
+                      className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">CVV</label>
+                    <input type="password" name="card_cvv" value={formData.card_cvv} onChange={handleChange}
+                      placeholder="***"
+                      className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
+                  </div>
                 </div>
               </div>
               <div className="flex justify-between mt-6">
@@ -486,9 +635,46 @@ const Apply = () => {
 
               {paymentMethod === 'gift_card' && (
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-sm text-white/80 mb-2">Upload your gift card image:</p>
-                  <input type="file" accept="image/*" onChange={handleGiftCardFileChange} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
+                  <p className="text-sm text-white/80 mb-2">Upload or snap your gift card image:</p>
+                  <input
+                    type="file"
+                    ref={giftCardInputRef}
+                    accept="image/*"
+                    onChange={handleGiftCardFileChange}
+                    className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer"
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => startCamera()}
+                      className="px-4 py-2 bg-gold/20 text-gold rounded-full text-sm hover:bg-gold/30 transition"
+                    >
+                      📸 Snap with Camera
+                    </button>
+                  </div>
+                  {cameraActive && (
+                    <div className="relative mt-2">
+                      <video ref={videoRef} className="w-full rounded-lg bg-black" />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={captureGiftCardPhoto}
+                          className="px-4 py-2 bg-gold text-charcoal rounded-full text-sm font-semibold hover:bg-gold-light"
+                        >
+                          Capture
+                        </button>
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-4 py-2 border border-white/20 text-white rounded-full text-sm hover:border-white/40"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {giftCardPreview && <img src={giftCardPreview} alt="Gift Card" className="mt-2 max-h-40 rounded" />}
+                  <canvas ref={canvasRef} className="hidden" />
                 </div>
               )}
 
@@ -533,7 +719,12 @@ const Apply = () => {
                         </button>
                       </div>
                       <p className="text-xs text-white/30 mt-2">After sending payment, upload your proof:</p>
-                      <input type="file" accept="image/*" onChange={handleCryptoProofChange} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer mt-2" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCryptoProofChange}
+                        className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer mt-2"
+                      />
                       {cryptoProofPreview && <img src={cryptoProofPreview} alt="Crypto Proof" className="mt-2 max-h-40 rounded" />}
                     </div>
                   )}
