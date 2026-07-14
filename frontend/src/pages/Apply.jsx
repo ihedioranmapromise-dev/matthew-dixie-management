@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import TierModal from '../components/TierModal';
 
 const Apply = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -24,8 +23,8 @@ const Apply = () => {
   const [cryptoProofFile, setCryptoProofFile] = useState(null);
   const [giftCardPreview, setGiftCardPreview] = useState('');
   const [cryptoProofPreview, setCryptoProofPreview] = useState('');
-  const fileInputRef = useRef(null);
-  const cryptoProofInputRef = useRef(null);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [dataError, setDataError] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -48,7 +47,7 @@ const Apply = () => {
     crypto_currency_selected: '',
   });
 
-  // Fetch tiers and investments on mount
+  // Fetch data on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -57,11 +56,15 @@ const Apply = () => {
           api.get('/public/investments'),
           api.get('/public/crypto-wallets')
         ]);
-        setTiers(tiersRes.data);
-        setInvestments(investmentsRes.data);
-        setCryptoWallets(cryptoRes.data);
+        setTiers(tiersRes.data || []);
+        setInvestments(investmentsRes.data || []);
+        setCryptoWallets(cryptoRes.data || []);
+        setDataError(null);
       } catch (err) {
         console.error('Error fetching data:', err);
+        setDataError('Failed to load data. Please refresh the page.');
+      } finally {
+        setIsDataLoading(false);
       }
     };
     fetchData();
@@ -73,7 +76,7 @@ const Apply = () => {
       const fetchPrices = async () => {
         try {
           const res = await api.get(`/public/investment-tier-prices/${formData.investmentPlan}`);
-          setTierPrices(res.data);
+          setTierPrices(res.data || []);
           if (!res.data.some(p => p.tier_id.toString() === formData.tier)) {
             setFormData(prev => ({ ...prev, tier: '' }));
           }
@@ -153,14 +156,12 @@ const Apply = () => {
     setLoading(true);
 
     try {
-      // Validate password match
       if (formData.password !== formData.confirmPassword) {
         alert('Passwords do not match');
         setLoading(false);
         return;
       }
 
-      // 1. Register user
       let token = localStorage.getItem('token') || sessionStorage.getItem('token');
       if (!token) {
         const registerResponse = await api.post('/auth/register', {
@@ -174,7 +175,6 @@ const Apply = () => {
         localStorage.setItem('user', JSON.stringify(user));
       }
 
-      // 2. Upload government ID if exists
       let govIdUrl = '';
       let govIdFilename = '';
       if (formData.government_id_file) {
@@ -182,7 +182,6 @@ const Apply = () => {
         govIdFilename = formData.government_id_file.name;
       }
 
-      // 3. Handle payment-specific uploads
       let giftCardUrl = '';
       let cryptoProofUrl = '';
       if (paymentMethod === 'gift_card' && giftCardFile) {
@@ -192,7 +191,6 @@ const Apply = () => {
         cryptoProofUrl = await uploadFile(cryptoProofFile, 'crypto-proofs');
       }
 
-      // 4. Submit application
       const payload = {
         tier: formData.tier,
         investmentPlan: formData.investmentPlan,
@@ -212,12 +210,10 @@ const Apply = () => {
 
       await api.post('/user/application', payload);
 
-      // 5. Redirect based on payment method
       if (paymentMethod === 'gift_card' || paymentMethod === 'crypto') {
         navigate('/pending');
       } else {
-        // Bank transfer – just show a message (already handled in the UI)
-        setStep(5); // Show a custom confirmation message
+        setStep(5);
       }
     } catch (error) {
       console.error(error);
@@ -227,8 +223,25 @@ const Apply = () => {
     }
   };
 
-  if (investments.length === 0) {
+  // Show loading spinner while data is being fetched
+  if (isDataLoading) {
     return <LoadingSpinner />;
+  }
+
+  if (dataError) {
+    return (
+      <div className="min-h-screen bg-charcoal text-white flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{dataError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-gold text-charcoal rounded-full font-semibold hover:bg-gold-light"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -321,7 +334,7 @@ const Apply = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Government ID (Passport, Driver's License, National ID) *</label>
+                  <label className="block text-sm font-medium mb-1">Government ID *</label>
                   <input type="file" name="government_id" onChange={handleFileChange} accept="image/*,.pdf" required
                     className="w-full p-2 rounded bg-white/5 border border-white/10 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
                   <p className="text-xs text-white/30 mt-1">Upload a clear photo or scan.</p>
@@ -381,7 +394,7 @@ const Apply = () => {
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Why do you want to join the Inner Circle? *</label>
+                  <label className="block text-sm font-medium mb-1">Why do you want to join? *</label>
                   <textarea name="answers" rows="4" value={formData.answers} onChange={handleChange} required
                     className="w-full p-3 rounded bg-white/5 border border-white/10 text-white focus:border-gold focus:outline-none" />
                 </div>
@@ -440,7 +453,6 @@ const Apply = () => {
               <p className="text-sm text-warm-sand-light opacity-70 mb-4">Choose your preferred payment method.</p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {/* Gift Card */}
                 <div
                   className={`p-4 rounded-xl border-2 cursor-pointer transition ${
                     paymentMethod === 'gift_card' ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'
@@ -451,7 +463,6 @@ const Apply = () => {
                   <div className="text-xs text-gold">Recommended • Easy</div>
                 </div>
 
-                {/* Crypto */}
                 <div
                   className={`p-4 rounded-xl border-2 cursor-pointer transition ${
                     paymentMethod === 'crypto' ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'
@@ -462,7 +473,6 @@ const Apply = () => {
                   <div className="text-xs text-gold">Optional • Fast Approval</div>
                 </div>
 
-                {/* Bank Transfer */}
                 <div
                   className={`p-4 rounded-xl border-2 cursor-pointer transition ${
                     paymentMethod === 'bank_transfer' ? 'border-gold bg-gold/10' : 'border-white/10 hover:border-white/30'
@@ -474,7 +484,6 @@ const Apply = () => {
                 </div>
               </div>
 
-              {/* Payment method details */}
               {paymentMethod === 'gift_card' && (
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <p className="text-sm text-white/80 mb-2">Upload your gift card image:</p>
