@@ -56,9 +56,6 @@ const Home = () => {
             <Link to="/apply" className="px-8 py-3 bg-gold text-charcoal rounded-full font-semibold uppercase tracking-wider text-sm hover:bg-gold-light transition">
               Join Now
             </Link>
-            <Link to="/tiers" className="px-8 py-3 border border-white/20 text-white rounded-full font-semibold uppercase tracking-wider text-sm hover:border-gold hover:text-gold transition">
-              Explore Tiers
-            </Link>
             <Link to="/investments" className="px-8 py-3 border border-gold/40 text-gold rounded-full font-semibold uppercase tracking-wider text-sm hover:bg-gold hover:text-charcoal transition">
               Invest
             </Link>
