@@ -3,7 +3,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CookieConsent from './components/CookieConsent';
 import Home from './pages/Home';
-import Tiers from './pages/Tiers';
 import Apply from './pages/Apply';
 import Auth from './pages/Auth';
 import Admin from './pages/Admin';
@@ -25,7 +24,6 @@ function App() {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/tiers" element={<Tiers />} />
             <Route path="/apply" element={<Apply />} />
             <Route path="/login" element={<Auth />} />
             <Route path="/admin" element={<Admin />} />
