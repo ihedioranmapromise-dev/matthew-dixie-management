@@ -19,6 +19,7 @@ const Apply = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [giftCardType, setGiftCardType] = useState(''); // new
   const [giftCardFile, setGiftCardFile] = useState(null);
   const [cryptoProofFile, setCryptoProofFile] = useState(null);
   const [giftCardPreview, setGiftCardPreview] = useState('');
@@ -169,7 +170,6 @@ const Apply = () => {
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      // Convert to file
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], `photo_${Date.now()}.png`, { type: 'image/png' });
@@ -290,16 +290,14 @@ const Apply = () => {
         payment_type: paymentMethod,
         gift_card_image_url: giftCardUrl,
         crypto_proof_image_url: cryptoProofUrl,
-        crypto_currency_selected: formData.crypto_currency_selected
+        crypto_currency_selected: formData.crypto_currency_selected,
+        gift_card_type: giftCardType, // include gift card type
       };
 
       await api.post('/user/application', payload);
 
-      if (paymentMethod === 'gift_card' || paymentMethod === 'crypto') {
-        navigate('/pending');
-      } else {
-        setStep(5);
-      }
+      // All payment methods now redirect to /pending
+      navigate('/pending');
     } catch (error) {
       console.error(error);
       alert('Error submitting application: ' + (error.response?.data?.error || error.message));
@@ -307,6 +305,10 @@ const Apply = () => {
       setLoading(false);
     }
   };
+
+  // Compute selected tier price for display
+  const selectedTierPrice = tierPrices.find(p => p.tier_id.toString() === formData.tier);
+  const amountToPay = selectedTierPrice ? selectedTierPrice.price_monthly : 0;
 
   if (isDataLoading) return <LoadingSpinner />;
 
@@ -629,12 +631,35 @@ const Apply = () => {
                   onClick={() => setPaymentMethod('bank_transfer')}
                 >
                   <div className="font-semibold text-white">Bank Transfer</div>
-                  <div className="text-xs text-warm-sand-light">Slower to approve</div>
+                  <div className="text-xs text-warm-sand-light">Slower to approve — Manual</div>
                 </div>
               </div>
 
               {paymentMethod === 'gift_card' && (
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <p className="text-sm text-white/80 mb-3">Select Gift Card Type:</p>
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {['apple', 'steam', 'google_play'].map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        className={`px-4 py-2 rounded-full text-sm font-semibold capitalize transition ${
+                          giftCardType === type
+                            ? 'bg-gold text-charcoal'
+                            : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                        onClick={() => setGiftCardType(type)}
+                      >
+                        {type.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-white/80">Amount to pay:</span>
+                    <span className="text-gold font-semibold text-lg">${amountToPay}</span>
+                  </div>
+
                   <p className="text-sm text-white/80 mb-2">Upload or snap your gift card image:</p>
                   <input
                     type="file"
@@ -699,7 +724,10 @@ const Apply = () => {
                   </div>
                   {formData.crypto_currency_selected && (
                     <div>
-                      <p className="text-sm text-white/60">Wallet address:</p>
+                      <p className="text-sm text-white/60 mb-2">
+                        Send the equivalent of <span className="text-gold font-semibold">${amountToPay}</span> in {formData.crypto_currency_selected}.
+                      </p>
+                      <p className="text-sm text-white/60 mb-2">Wallet address:</p>
                       <div className="flex items-center gap-2 bg-white/5 p-3 rounded">
                         <code className="text-xs text-white break-all">
                           {cryptoWallets.find(w => w.currency === formData.crypto_currency_selected)?.address}
@@ -732,8 +760,10 @@ const Apply = () => {
               )}
 
               {paymentMethod === 'bank_transfer' && (
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10 text-center">
-                  <p className="text-white/80">Check your email for manual payment instructions.</p>
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <p className="text-white/80 text-center py-4">
+                    Submit your application and check your email for manual payment.
+                  </p>
                 </div>
               )}
 
@@ -749,20 +779,6 @@ const Apply = () => {
                   {loading ? 'Submitting...' : 'Submit Application'}
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Bank transfer confirmation step (step 5) */}
-          {step === 5 && (
-            <div className="text-center py-8">
-              <div className="text-6xl mb-4">📧</div>
-              <h3 className="font-serif text-2xl text-white mb-2">Check Your Email</h3>
-              <p className="text-warm-sand-light opacity-80">
-                We have sent you an email with payment instructions. Please complete the payment to finalize your application.
-              </p>
-              <button onClick={() => navigate('/')} className="mt-6 px-6 py-2 bg-gold text-charcoal rounded-full font-semibold hover:bg-gold-light transition">
-                Return Home
-              </button>
             </div>
           )}
         </form>
