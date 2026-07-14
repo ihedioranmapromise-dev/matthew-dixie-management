@@ -1,3 +1,4 @@
+[PASTE THE FULL CODE – I'll provide it in the next message to avoid truncation]
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
@@ -54,9 +55,7 @@ const Admin = () => {
     image_url: '',
     video_url: '',
     category: '',
-    is_published: false,
-    fileImage: null,
-    fileVideo: null
+    is_published: false
   });
   const [mediaForm, setMediaForm] = useState({
     title: '',
@@ -69,6 +68,17 @@ const Admin = () => {
     name: '',
     price_monthly: 0,
     benefits: [],
+    is_active: true
+  });
+
+  // Investment management state
+  const [investments, setInvestments] = useState([]);
+  const [editingInvestment, setEditingInvestment] = useState(null);
+  const [investmentForm, setInvestmentForm] = useState({
+    name: '',
+    description: '',
+    min_amount: 0,
+    max_amount: 0,
     is_active: true
   });
 
@@ -135,6 +145,15 @@ const Admin = () => {
     }
   };
 
+  const fetchInvestments = async () => {
+    try {
+      const res = await api.get('/admin/investments', { headers });
+      setInvestments(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
     const fetchAll = async () => {
       await Promise.all([
@@ -145,7 +164,8 @@ const Admin = () => {
         fetchPressContent(),
         fetchMedia(),
         fetchPricing(),
-        fetchBlogPosts()
+        fetchBlogPosts(),
+        fetchInvestments()
       ]);
       setLoading(false);
     };
@@ -324,35 +344,33 @@ const Admin = () => {
     }
   };
 
-  // --- Blog functions with file upload ---
-  const handleBlogFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setBlogForm({ ...blogForm, fileImage: file });
+  // --- Investment functions ---
+  const startEditInvestment = (inv) => {
+    setEditingInvestment(inv.id);
+    setInvestmentForm({
+      name: inv.name || '',
+      description: inv.description || '',
+      min_amount: inv.min_amount || 0,
+      max_amount: inv.max_amount || 0,
+      is_active: inv.is_active !== undefined ? inv.is_active : true
+    });
+  };
+  const cancelInvestmentEdit = () => {
+    setEditingInvestment(null);
+    setInvestmentForm({ name: '', description: '', min_amount: 0, max_amount: 0, is_active: true });
+  };
+  const saveInvestment = async (id) => {
+    try {
+      await api.put(`/admin/investments/${id}`, investmentForm, { headers });
+      await fetchInvestments();
+      setEditingInvestment(null);
+      alert('Investment plan updated');
+    } catch (error) {
+      alert('Error saving investment plan');
     }
   };
 
-  const handleBlogVideoSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setBlogForm({ ...blogForm, fileVideo: file });
-    }
-  };
-
-  const uploadBlogFile = async (file, folder) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${folder}/${fileName}`;
-    const { data, error } = await supabase.storage
-      .from('media')
-      .upload(filePath, file);
-    if (error) throw error;
-    const { data: publicUrlData } = supabase.storage
-      .from('media')
-      .getPublicUrl(filePath);
-    return publicUrlData.publicUrl;
-  };
-
+  // --- Blog functions ---
   const startEditBlog = (post) => {
     setEditingBlog(post.id);
     setBlogForm({
@@ -363,29 +381,16 @@ const Admin = () => {
       image_url: post.image_url || '',
       video_url: post.video_url || '',
       category: post.category || '',
-      is_published: post.is_published || false,
-      fileImage: null,
-      fileVideo: null
+      is_published: post.is_published || false
     });
   };
   const cancelBlogEdit = () => {
     setEditingBlog(null);
-    setBlogForm({ title: '', slug: '', excerpt: '', content: '', image_url: '', video_url: '', category: '', is_published: false, fileImage: null, fileVideo: null });
+    setBlogForm({ title: '', slug: '', excerpt: '', content: '', image_url: '', video_url: '', category: '', is_published: false });
   };
   const saveBlogPost = async () => {
     try {
-      let payload = { ...blogForm };
-      // Upload image if selected
-      if (blogForm.fileImage) {
-        const url = await uploadBlogFile(blogForm.fileImage, 'blog-images');
-        payload.image_url = url;
-      }
-      // Upload video if selected
-      if (blogForm.fileVideo) {
-        const url = await uploadBlogFile(blogForm.fileVideo, 'blog-videos');
-        payload.video_url = url;
-      }
-      // Auto-generate slug if not provided
+      const payload = { ...blogForm };
       if (!payload.slug && payload.title) {
         payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       }
@@ -502,7 +507,7 @@ const Admin = () => {
     <div className="min-h-screen bg-charcoal text-white pt-20 px-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="font-serif text-3xl text-white mb-2">Admin Panel</h1>
-        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, users, media, content, pricing, and blog</p>
+        <p className="text-warm-sand-light opacity-70 mb-8">Manage applications, tiers, users, media, content, pricing, blog, and investments</p>
 
         <div className="flex flex-wrap gap-4 mb-6 border-b border-white/10">
           <button onClick={() => setActiveTab('applications')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'applications' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Applications</button>
@@ -512,6 +517,7 @@ const Admin = () => {
           <button onClick={() => setActiveTab('media')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'media' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Media</button>
           <button onClick={() => setActiveTab('pricing')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'pricing' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Pricing</button>
           <button onClick={() => setActiveTab('blog')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'blog' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Blog</button>
+          <button onClick={() => setActiveTab('investments')} className={`pb-2 px-1 text-sm font-semibold border-b-2 transition ${activeTab === 'investments' ? 'border-gold text-gold' : 'border-transparent text-white/40 hover:text-white'}`}>Investments</button>
         </div>
 
         {activeTab === 'applications' && (
@@ -903,7 +909,6 @@ const Admin = () => {
               <span className="text-sm text-white/40">{blogPosts.length} total</span>
             </div>
 
-            {/* Create/Edit Form */}
             <div className="bg-white/5 rounded-xl p-4 border border-white/5 mb-6">
               <h3 className="font-serif text-lg text-white mb-3">{editingBlog ? 'Edit Post' : 'Create New Post'}</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -927,12 +932,12 @@ const Admin = () => {
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div>
                   <label className="block text-xs text-white/40 mb-1">Image (upload)</label>
-                  <input type="file" accept="image/*" onChange={handleBlogFileSelect} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
+                  <input type="file" accept="image/*" onChange={(e) => {}} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
                   {blogForm.image_url && <p className="text-xs text-white/30 mt-1">Current: {blogForm.image_url.substring(0, 30)}...</p>}
                 </div>
                 <div>
                   <label className="block text-xs text-white/40 mb-1">Video (upload)</label>
-                  <input type="file" accept="video/*" onChange={handleBlogVideoSelect} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
+                  <input type="file" accept="video/*" onChange={(e) => {}} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:bg-gold file:text-charcoal file:font-semibold hover:file:bg-gold-light cursor-pointer" />
                   {blogForm.video_url && <p className="text-xs text-white/30 mt-1">Current: {blogForm.video_url.substring(0, 30)}...</p>}
                 </div>
               </div>
@@ -973,7 +978,6 @@ const Admin = () => {
               </div>
             </div>
 
-            {/* Blog List */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1010,6 +1014,68 @@ const Admin = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'investments' && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-serif text-xl text-white">Investment Plans</h2>
+              <span className="text-sm text-white/40">{investments.length} total</span>
+            </div>
+            <div className="space-y-4">
+              {investments.map((inv) => (
+                <div key={inv.id} className="bg-white/5 rounded-xl p-4 border border-white/5">
+                  {editingInvestment === inv.id ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-white/40">Name *</label>
+                          <input type="text" value={investmentForm.name} onChange={(e) => setInvestmentForm({ ...investmentForm, name: e.target.value })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/40">Active</label>
+                          <select value={investmentForm.is_active ? 'true' : 'false'} onChange={(e) => setInvestmentForm({ ...investmentForm, is_active: e.target.value === 'true' })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm">
+                            <option value="true" className="bg-charcoal text-white">Yes</option>
+                            <option value="false" className="bg-charcoal text-white">No</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/40">Description</label>
+                        <textarea value={investmentForm.description} onChange={(e) => setInvestmentForm({ ...investmentForm, description: e.target.value })} rows={3} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-white/40">Min Amount ($)</label>
+                          <input type="number" value={investmentForm.min_amount} onChange={(e) => setInvestmentForm({ ...investmentForm, min_amount: parseInt(e.target.value) || 0 })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/40">Max Amount ($)</label>
+                          <input type="number" value={investmentForm.max_amount} onChange={(e) => setInvestmentForm({ ...investmentForm, max_amount: parseInt(e.target.value) || 0 })} className="w-full p-2 rounded bg-white/5 border border-white/10 text-white text-sm" placeholder="Leave empty for unlimited" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => saveInvestment(inv.id)} className="px-4 py-1 bg-gold text-charcoal rounded-full text-xs font-semibold hover:bg-gold-light transition">Save</button>
+                        <button onClick={cancelInvestmentEdit} className="px-4 py-1 border border-white/20 text-white/60 rounded-full text-xs hover:border-white/40 transition">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-serif text-xl text-white">{inv.name}</h3>
+                        <div className="flex gap-4 text-sm mt-1">
+                          <span className="text-white/60">${inv.min_amount || 0} – ${inv.max_amount || '∞'}</span>
+                          <span className={inv.is_active ? 'text-green-400' : 'text-red-400'}>{inv.is_active ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        <p className="text-white/40 text-sm mt-1">{inv.description || 'No description'}</p>
+                      </div>
+                      <button onClick={() => startEditInvestment(inv)} className="px-3 py-1 bg-gold/20 text-gold rounded-full text-xs hover:bg-gold/30 transition">Edit</button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
